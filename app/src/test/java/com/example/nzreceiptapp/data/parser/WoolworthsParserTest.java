@@ -1,46 +1,186 @@
 package com.example.nzreceiptapp.data.parser;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import com.example.nzreceiptapp.domain.model.ReceiptItem;
 import java.util.List;
+import org.junit.Before;
 import org.junit.Test;
 
-/**
- * 專門測試 Woolworths 收據解析邏輯的單元測試
- */
 public class WoolworthsParserTest {
 
+    private WoolworthsParser parser;
+
+    @Before
+    public void setUp() {
+        parser = new WoolworthsParser();
+    }
+
     @Test
-    public void testParseRawText_Success() {
-        WoolworthsParser parser = new WoolworthsParser();
-        
-        // 模擬一段真實從 Woolworths 收據 OCR 出來的純文字
-        String mockOcrText = "MUNCHEROS CHIPS      3.00\n" +
-                             "WATTIES BAKED BEAN   3.00\n" +
-                             "2 @ 1.50\n" +
-                             "TOTAL                6.00";
-        
-        // 執行解析
+    public void testParseReceipt1_StandardAndWeightedItems() {
+        // 模擬第一張收據：包含標準單件品項、行尾帶有GST代碼(G/N)、以及單行複雜重量計價
+        String mockOcrText = "WOOLWORTHS AUCKLAND\n" +
+                "STORE 4321 - TAX INVOICE\n" +
+                "WW MILK HOMOGENISED 2L       3.89 G\n" + // 標準行 + 空格 + 金額 + G
+                "HAMPTONS BRIE 125G           4.50 N\n" + // 標準行 + 免稅代碼 N
+                "BANANAS LOOSE 0.645 kg @ $3.49 /kg   2.25 G\n" + // 單行內嵌重量與單價明細
+                "SUBTOTAL                     10.64\n" +
+                "TOTAL                        10.64\n" +
+                "EFTPOS                       10.64\n";
+
         List<ReceiptItem> items = parser.parseRawText(mockOcrText);
-        
-        // 驗證 1：確認總共解析出 2 個商品品項
-        assertEquals(2, items.size());
-        
-        // 驗證 2：檢查第一項商品
-        ReceiptItem item1 = items.get(0);
-        assertEquals("MUNCHEROS CHIPS", item1.getRawName());
-        assertEquals("Muncheros Chips", item1.getCleanName());
-        assertEquals(1.0, item1.getQuantity(), 0.0);
-        assertEquals(300L, item1.getUnitPriceCents());
-        assertEquals(300L, item1.getSubtotalCents());
-        
-        // 驗證 3：檢查第二項商品（多件購買 2 @ 1.50）
-        ReceiptItem item2 = items.get(1);
-        assertEquals("WATTIES BAKED BEAN", item2.getRawName());
-        assertEquals("Watties Baked Bean", item2.getCleanName());
-        assertEquals(2.0, item2.getQuantity(), 0.0);
-        assertEquals(150L, item2.getUnitPriceCents());
-        assertEquals(300L, item2.getSubtotalCents());
+
+        // 驗證過濾功能：系統應自動剔除 TOTAL, SUBTOTAL, EFTPOS 等雜訊，只留 3 項商品
+        assertNotNull(items);
+        assertEquals(3, items.size());
+
+        // 1. 驗證牛奶 (標準單件)
+        ReceiptItem milk = items.get(0);
+        assertEquals("WW MILK HOMOGENISED 2L", milk.getName());
+        assertEquals(1.0, milk.getQuantity(), 0.001);
+        assertEquals("ea", milk.getUnit());
+        assertEquals(389, milk.getUnitPriceCents());
+        assertEquals(389, milk.getTotalPriceCents());
+        System.out.println("milk = " + milk);
+
+        // 2. 驗證起司 (免稅標記 N)
+        ReceiptItem brie = items.get(1);
+        assertEquals("HAMPTONS BRIE 125G", brie.getName());
+        assertEquals(450, brie.getTotalPriceCents());
+
+        // 3. 驗證香蕉 (單行內嵌重量計價)
+        ReceiptItem bananas = items.get(2);
+        assertTrue(bananas.getName().contains("BANANAS LOOSE"));
+        assertEquals(0.645, bananas.getQuantity(), 0.001);
+        assertEquals("kg", bananas.getUnit());
+        assertEquals(349, bananas.getUnitPriceCents()); // 單價 $3.49 -> 349 Cents
+        assertEquals(225, bananas.getTotalPriceCents()); // 總價 $2.25 -> 225 Cents
+        System.out.println("bananas = " + bananas);
+    }
+
+    @Test
+    public void testParseReceipt2_MultilineMultiBuy() {
+        // 模擬第二張收據：包含 Woolworths 最經典的「商品名與多件明細跨行拆分」情境
+        String mockOcrText = "WOOLWORTHS METRO\n" +
+                "CORN CHIPS 150G              3.00 *\n" + // 第一行：品名與該行總價，尾綴星號
+                "  2 @ 1.50\n" +                           // 第二行：獨立的數量與單價拆解，無總價
+                "WW WATER 24PK                9.00 G\n" +
+                "TOTAL DUE                   12.00\n" +
+                "CASH                         20.00\n";
+
+        List<ReceiptItem> items = parser.parseRawText(mockOcrText);
+
+        assertNotNull(items);
+        assertEquals(2, items.size()); // 跨行的兩行應被合併為同一個商品物件
+
+        // 1. 驗證多件折落的洋芋片
+        ReceiptItem chips = items.get(0);
+        assertEquals("CORN CHIPS 150G", chips.getName());
+        assertEquals(2.0, chips.getQuantity(), 0.001); // 應成功回溯更新數量為 2
+        assertEquals("ea", chips.getUnit());
+        assertEquals(150, chips.getUnitPriceCents());  // 單價應為 150 Cents ($1.50)
+        assertEquals(300, chips.getTotalPriceCents());  // 總價應為 300 Cents ($3.00)
+        System.out.println("chips = " + chips);
+
+        // 2. 驗證水
+        ReceiptItem water = items.get(1);
+        assertEquals("WW WATER 24PK", water.getName());
+        assertEquals(900, water.getTotalPriceCents());
+    }
+
+    @Test
+    public void testParseRealOCRText(){
+        String mockOcrText = "Woolworths\n" +
+                "3128 Greenlane PH: 09 522 6970\n" +
+                "326 Great South Road\n" +
+                "Tax Invoice/Credit Note - GST No. 44-833-938\n" +
+                "\n" +
+                "Carrot\n" +
+                "0 520 kg NET @ $1.95/kg                  1.01\n" +
+                "Ww Canola Oil 2L                           7.99\n" +
+                "^ Keri Apple Orange Mango Drink 1L         1.99\n" +
+                "^ Keri Pulpy Orange Drink 1L\n" +
+                "Qty   2 @ $1.99 each                       3.98\n" +
+                "Ww Soda Water 1.5L                         1.79\n" +
+                "Essentials French Fries 1kg                3.10\n" +
+                "^ Auntie Dais Dumpling Chick n Cori 600g   9.90\n" +
+                "Ww Chicken DrumsticksLarge                13.51\n" +
+                "^ Ww Beef Mince 132 Fat 750g              16.90\n" +
+                "Ww Sliced Frozen Strawberries 500g         8.29\n" +
+                "^ Tip-Top Trumpet Triple Choco4Pk 440ml    6.00\n" +
+                "^ Tip Top Trumpet S/Berry Shake4x110ml     6.00\n" +
+                "^ Macro Organic Basil Leaves 20g           2.50\n" +
+                "* Ww Popcorn Bag Sweet N Salty 85g         1.20\n" +
+                "ACT II Microwave Kettle Corn 85g           2.00\n" +
+                "* Anchor Milk C/yum Strawberry 250ml       1.00\n" +
+                "^ Greggs Mild AmericanMustard 250g         3.55\n" +
+                "Broccoli Each                              2.29\n" +
+                "^ Eta Ripples Ready Salted 150g            1.99\n" +
+                "#SALVATION ARMY DONATION                   0.01\n" +
+                "\n" +
+                "21 SUBTOTAL                               $95.00\n" +
+                "TOTAL                                     $95.00\n" +
+                "\n" +
+                "WOOLWORTHS NZ 9128                        GREENLANE\n" +
+                "MERCH ID:611000069009128   TERM ID:       N9128062\n" +
+                "Visa DEBIT\n" +
+                "CARD: ............0428 T\n" +
+                "A/C  A0000000031010        PURCHASE       NZ$95.00\n" +
+                "TVR  000000000000";
+
+        List<ReceiptItem> items = parser.parseRawText(mockOcrText);
+
+        assertNotNull(items);
+        assertEquals(20, items.size());
+
+        // 1. Carrot (Weighted)
+        ReceiptItem carrot = items.get(0);
+        assertEquals("Carrot", carrot.getName());
+        assertEquals(0.520, carrot.getQuantity(), 0.001);
+        assertEquals("kg", carrot.getUnit());
+        assertEquals(195, carrot.getUnitPriceCents());
+        assertEquals(101, carrot.getTotalPriceCents());
+
+        // 2. Canola Oil
+        ReceiptItem oil = items.get(1);
+        assertEquals("Ww Canola Oil 2L", oil.getName());
+        assertEquals(799, oil.getTotalPriceCents());
+        assertTrue("Oil should not be special", !oil.getSpecialMk());
+
+        // 3. Keri Apple Orange Mango (Special ^)
+        ReceiptItem keri1 = items.get(2);
+        assertEquals("Keri Apple Orange Mango Drink 1L", keri1.getName());
+        assertTrue("Keri 1 should be special", keri1.getSpecialMk());
+
+        // 4. Keri Pulpy Orange (Multi-buy + Special ^ on previous line)
+        ReceiptItem keri2 = items.get(3);
+        assertEquals("Keri Pulpy Orange Drink 1L", keri2.getName());
+        assertEquals(2.0, keri2.getQuantity(), 0.001);
+        assertEquals(199, keri2.getUnitPriceCents());
+        assertEquals(398, keri2.getTotalPriceCents());
+        assertTrue("Keri 2 should be special", keri2.getSpecialMk());
+
+        // 8. Beef Mince (Special ^)
+        ReceiptItem beef = items.get(8);
+        assertTrue(beef.getName().contains("Beef Mince"));
+        assertTrue("Beef Mince should be special", beef.getSpecialMk());
+
+        // 20. Donation
+        ReceiptItem donation = items.get(19);
+        assertEquals("SALVATION ARMY DONATION", donation.getName());
+        assertEquals(1, donation.getTotalPriceCents());
+        assertTrue("Donation should not be special", !donation.getSpecialMk());
+    }
+
+    @Test
+    public void testParseEmptyOrGarbageText() {
+        // 邊界條件測試：輸入全為無效文字或空值
+        String garbageText = "WELCOME TO WOOLWORTHS\n\nDUPLICATE RECEIPT\nTHANK YOU FOR SHOPPING\n";
+        List<ReceiptItem> items = parser.parseRawText(garbageText);
+
+        assertNotNull(items);
+        assertTrue(items.isEmpty());
     }
 }

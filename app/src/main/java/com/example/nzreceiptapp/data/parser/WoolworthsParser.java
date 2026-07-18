@@ -3,129 +3,135 @@ package com.example.nzreceiptapp.data.parser;
 import com.example.nzreceiptapp.domain.model.ReceiptItem;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class WoolworthsParser {
 
-    // 1. 標準品項行：匹配名稱與總價 (修正：相容選填的 $ 以及行尾的 GST 稅收標記如 G, N, *)
-    private static final Pattern ITEM_PATTERN =
-            Pattern.compile("^(.+?)\\s+\\$?\\s*(\\d+\\.\\d{2})(?:\\s+[A-Z*])?\\s*$", Pattern.CASE_INSENSITIVE);
+    // 第一層：擷取品名與總價，捕捉前綴 ^, *, #, 忽略稅務代碼 G, N, *
+    private static final Pattern ITEM_PATTERN = Pattern.compile("^([\\^\\*#]?)\\s*(.+?)\\s+(\\d+\\.\\d+)\\s*(?:[GN*])?\\s*$");
 
-    // 2. 獨立明細行：例如 "2 @ 1.50" 或 "0.645 kg @ $3.49 /kg" (修正：不強制行尾有總價，相容稅率標記)
-    private static final Pattern STANDALONE_MULTI_PATTERN =
-            Pattern.compile("^\\s*([\\d.]+)\\s*([a-zA-Z]*)\\s*@\\s*\\$?\\s*([\\d.]+)(?:\\s*ea|\\s*/?kg)?(?:\\s+[A-Z*])?\\s*$", Pattern.CASE_INSENSITIVE);
+    // 多件模式：支援 "2 @ 1.50", "Qty 2 @ 1.50 each", "$1.50 each"
+    private static final Pattern MULTI_BUY_INFO = Pattern.compile("(?:Qty\\s*)?(\\d+(?:\\.\\d+)?)\\s*@\\s*\\$?(\\d+\\.\\d+)(?:\\s*each)?");
 
-    // 3. 內嵌明細解析：用於拆解同一行內的 @ 資訊
-    private static final Pattern INNER_DETAIL_PATTERN =
-            Pattern.compile("([\\d.]+)\\s*([a-zA-Z]*)\\s*@\\s*\\$?\\s*([\\d.]+)(?:\\s*ea|\\s*/?kg)?", Pattern.CASE_INSENSITIVE);
+    // 秤重模式：支援 "0 520 kg NET @ $1.95/kg"
+    private static final Pattern WEIGHTED_INFO = Pattern.compile("(\\d+[\\s.]\\d+)\\s*kg\\s*(?:NET\\s*)?@\\s*\\$?(\\d+\\.\\d+)\\s*/kg");
 
-    // 4. 過濾無效關鍵字
-    private static final Pattern EXCLUDE_PATTERN =
-            Pattern.compile("(EFTPOS|CASH|CHANGE|ROUNDING|GST|TOTAL|SUBTOTAL|BAL|ITEMS|TAX INVOICE|DUPLICATE)", Pattern.CASE_INSENSITIVE);
+    // 純多件折落模式 (不含總價在同行的狀況)
+    private static final Pattern MULTI_BUY_ONLY = Pattern.compile("^\\s*(\\d+(?:\\.\\d+)?)\\s*@\\s*\\$?(\\d+\\.\\d+)\\s*$");
 
-    public List<ReceiptItem> parseRawText(String ocrText) {
+    public List<ReceiptItem> parseRawText(String rawText) {
         List<ReceiptItem> items = new ArrayList<>();
-        String[] lines = ocrText.split("\n");
+        if (rawText == null || rawText.trim().isEmpty()) {
+            return items;
+        }
+
         String pendingItemName = null;
-
+        boolean pendingIsSpecial = false;
+        String[] lines = rawText.split("\\n");
         for (String line : lines) {
-            line = line.trim();
-            if (line.isEmpty()) continue;
-
-            // 優先情境 A：此行為獨立的 @ 數量金額拆解行 (例如上一行是品項，這行是 2 @ 1.50)
-            Matcher standaloneMatcher = STANDALONE_MULTI_PATTERN.matcher(line);
-            if (standaloneMatcher.matches()) {
-                if (!items.isEmpty()) {
-                    // 核心修正：回溯並更新剛剛加入的上一個商品的數量與單價
-                    double quantity = Double.parseDouble(standaloneMatcher.group(1));
-                    String rawUnit = standaloneMatcher.group(2).trim();
-                    double unitPrice = Double.parseDouble(standaloneMatcher.group(3));
-
-                    ReceiptItem lastItem = items.get(items.size() - 1);
-                    lastItem.setQuantity(quantity);
-                    lastItem.setUnit(rawUnit.isEmpty() ? "ea" : rawUnit);
-                    lastItem.setUnitPriceCents(Math.round(unitPrice * 100));
-                }
-                pendingItemName = null;
+            String trimmedLine = line.trim();
+            if (trimmedLine.isEmpty()) {
                 continue;
             }
 
-            // 情境 B：標準商品行 (包含品項名稱/敘述與該行總價)
-            Matcher itemMatcher = ITEM_PATTERN.matcher(line);
+            // 1. 關鍵字過濾
+            if (isTransactionMetadata(trimmedLine)) {
+                continue;
+            }
+
+            // 2. 處理「純多件折落行」(上一行的延續，無總價在同行)
+            Matcher multiOnlyMatcher = MULTI_BUY_ONLY.matcher(line);
+            if (multiOnlyMatcher.matches()) {
+                if (!items.isEmpty()) {
+                    ReceiptItem lastItem = items.get(items.size() - 1);
+                    lastItem.setQuantity(Double.parseDouble(multiOnlyMatcher.group(1)));
+                    lastItem.setUnitPrice(Double.parseDouble(multiOnlyMatcher.group(2)));
+                }
+                continue;
+            }
+
+            // 3. 標準品項 (品名 + 總價)
+            Matcher itemMatcher = ITEM_PATTERN.matcher(trimmedLine);
             if (itemMatcher.matches()) {
-                String matchedPart = itemMatcher.group(1).trim();
-                double matchedPrice = Double.parseDouble(itemMatcher.group(2));
+                String prefix = itemMatcher.group(1);
+                String rawName = itemMatcher.group(2).trim();
+                double totalPrice = Double.parseDouble(itemMatcher.group(3));
 
-                if (EXCLUDE_PATTERN.matcher(matchedPart).find()) {
-                    continue;
+                ReceiptItem item = new ReceiptItem();
+                item.setTotalPrice(totalPrice);
+                item.setQuantity(1.0);
+                item.setUnitPrice(totalPrice);
+                
+                // 判斷是否為特價品 (^)
+                if ("^".equals(prefix) || pendingIsSpecial) {
+                    item.setSpecialMk(true);
                 }
 
-                String itemId = UUID.randomUUID().toString();
-                long totalCents = Math.round(matchedPrice * 100);
-
-                // 子情境 B-1：同一行內包含 @ 符號 (例如：BANANAS LOOSE 0.645 kg @ $3.49 /kg)
-                if (matchedPart.contains("@")) {
-                    Matcher innerMatcher = INNER_DETAIL_PATTERN.matcher(matchedPart);
-
-                    double quantity = 1.0;
-                    String unit = "ea";
-                    long unitPriceCents = totalCents;
-
-                    if (innerMatcher.find()) {
-                        quantity = Double.parseDouble(innerMatcher.group(1));
-                        String rawUnit = innerMatcher.group(2).trim();
-                        double unitPrice = Double.parseDouble(innerMatcher.group(3));
-
-                        unit = rawUnit.isEmpty() ? "ea" : rawUnit;
-                        unitPriceCents = Math.round(unitPrice * 100);
+                // 檢查是否為秤重資訊
+                Matcher weightMatcher = WEIGHTED_INFO.matcher(rawName);
+                if (weightMatcher.find()) {
+                    String qtyStr = weightMatcher.group(1).replace(" ", ".");
+                    item.setQuantity(Double.parseDouble(qtyStr));
+                    item.setUnitPrice(Double.parseDouble(weightMatcher.group(2)));
+                    item.setUnit("kg");
+                    
+                    if (pendingItemName != null) {
+                        item.setName(pendingItemName);
+                    } else {
+                        String namePrefix = rawName.substring(0, weightMatcher.start()).trim();
+                        item.setName(namePrefix.isEmpty() ? "Unknown Weighted" : namePrefix);
                     }
-
-                    // 切除字串內部的 @ 資訊，只留下乾淨的商品名稱
-                    String cleanName = matchedPart.split("(?=\\d+\\s*([a-zA-Z]*)\\s*@)")[0].trim();
-                    if (cleanName.isEmpty()) {
-                        cleanName = (pendingItemName != null) ? pendingItemName : matchedPart;
+                } 
+                // 檢查是否為多件資訊
+                else {
+                    Matcher multiInfoMatcher = MULTI_BUY_INFO.matcher(rawName);
+                    if (multiInfoMatcher.find()) {
+                        item.setQuantity(Double.parseDouble(multiInfoMatcher.group(1)));
+                        item.setUnitPrice(Double.parseDouble(multiInfoMatcher.group(2)));
+                        
+                        if (pendingItemName != null) {
+                            item.setName(pendingItemName);
+                        } else {
+                            String namePrefix = rawName.substring(0, multiInfoMatcher.start()).trim();
+                            item.setName(namePrefix.isEmpty() ? "Unknown Multi" : namePrefix);
+                        }
+                    } else {
+                        item.setName(rawName);
                     }
-
-                    items.add(new ReceiptItem(itemId, cleanName, matchedPart, quantity, unit, unitPriceCents, totalCents));
-                    pendingItemName = null;
-                    continue;
                 }
 
-                // 子情境 B-2：這一行的前半段是 @ 明細，但商品名稱在上一行 (例如 Line1: MILK, Line2: 2 @ $1.50 ea 3.00 G)
-                if (matchedPart.matches(".*\\d+\\s*([a-zA-Z]*)\\s*@.*")) {
-                    Matcher innerMatcher = INNER_DETAIL_PATTERN.matcher(matchedPart);
-                    double quantity = 1.0;
-                    String unit = "ea";
-                    long unitPriceCents = totalCents;
-
-                    if (innerMatcher.find()) {
-                        quantity = Double.parseDouble(innerMatcher.group(1));
-                        String rawUnit = innerMatcher.group(2).trim();
-                        double unitPrice = Double.parseDouble(innerMatcher.group(3));
-                        unit = rawUnit.isEmpty() ? "ea" : rawUnit;
-                        unitPriceCents = Math.round(unitPrice * 100);
-                    }
-
-                    String finalName = (pendingItemName != null) ? pendingItemName : matchedPart;
-                    items.add(new ReceiptItem(itemId, finalName, line, quantity, unit, unitPriceCents, totalCents));
-                    pendingItemName = null;
-                    continue;
-                }
-
-                // 子情境 B-3：標準單件商品 (數量預設 1)
-                String finalName = (pendingItemName != null) ? pendingItemName : matchedPart;
-                items.add(new ReceiptItem(itemId, finalName, matchedPart, 1.0, "ea", totalCents, totalCents));
+                items.add(item);
                 pendingItemName = null;
-
+                pendingIsSpecial = false;
             } else {
-                // 情境 C：折行或純商品名稱行，先暫存起來供下一行結合
-                if (!EXCLUDE_PATTERN.matcher(line).find() && line.length() > 2) {
-                    pendingItemName = line;
+                // 如果沒有總價，可能是品名行
+                if (trimmedLine.length() > 2) {
+                    pendingIsSpecial = trimmedLine.startsWith("^");
+                    pendingItemName = trimmedLine.replaceAll("^[\\^\\*#]\\s*", "").trim();
                 }
             }
         }
+
         return items;
+    }
+
+    private boolean isTransactionMetadata(String line) {
+        String upper = line.toUpperCase();
+        return upper.startsWith("TOTAL") ||
+                upper.contains("SUBTOTAL") ||
+                upper.startsWith("EFTPOS") ||
+                upper.startsWith("CASH") ||
+                upper.startsWith("STORE ") ||
+                upper.contains("TAX INVOICE") ||
+                upper.contains("WELCOME") ||
+                upper.contains("THANK YOU") ||
+                upper.contains("DUPLICATE") ||
+                upper.contains("GREENLANE") ||
+                upper.contains("GREAT SOUTH ROAD") ||
+                upper.contains("VISA DEBIT") ||
+                upper.contains("NZ$") ||
+                upper.contains("TERM ID") ||
+                upper.contains("PH:");
     }
 }
