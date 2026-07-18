@@ -56,8 +56,7 @@ public class WoolworthsParserTest {
         assertEquals(0.645, bananas.getQuantity(), 0.001);
         assertEquals("kg", bananas.getUnit());
         assertEquals(349, bananas.getUnitPriceCents()); // 單價 $3.49 -> 349 Cents
-        assertEquals(225, bananas.getTotalPriceCents()); // 總價 $2.25 -> 225 Cents
-        System.out.println("bananas = " + bananas);
+        assertEquals(225, bananas.getTotalPriceCents()); // 總價 $2.25 -> 225 Cent
     }
 
     @Test
