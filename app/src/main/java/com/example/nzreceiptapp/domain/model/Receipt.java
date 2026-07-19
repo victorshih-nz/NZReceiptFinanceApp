@@ -1,59 +1,56 @@
 package com.example.nzreceiptapp.domain.model;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * 核心業務模型：整張消費收據
+ * 發票明細主體 (Domain Entity)
  */
 public class Receipt {
-    private String id;
-    private String storeName;       // 賣場名稱 (例如: Woolworths, PAK'nSAVE)
-    private String transactionDate; // 交易日期 (暫時用字串儲存，如 "2026-03-30")
-    private List<ReceiptItem> items;// 這張收據包含的所有品項
-    private long totalAmountCents;  // 收據上的總金額（分）
+    private final String id;
+    private final Store store;                   // 聚合分店實體
+    private final List<ReceiptItem> items;       // 一對多商品明細清單
+    private final LocalDateTime purchaseDate;    // 發票消費時間
+    private final long totalDiscountCents;       // 整張發票的額外折扣
+    private final boolean isSynced;              // 雲端同步旗標
 
-    public Receipt(){
-        this.id = null;
-        this.storeName = null;
-        this.transactionDate = null;
-        this.items = null;
-        this.totalAmountCents = 0;
-    }
-    public Receipt(String id, String storeName, String transactionDate, List<ReceiptItem> items, long totalAmountCents) {
+    public Receipt(String id, Store store, List<ReceiptItem> items, 
+                   LocalDateTime purchaseDate, long totalDiscountCents, boolean isSynced) {
         this.id = id;
-        this.storeName = storeName;
-        this.transactionDate = transactionDate;
+        this.store = store;
         this.items = items;
-        this.totalAmountCents = totalAmountCents;
+        this.purchaseDate = purchaseDate;
+        this.totalDiscountCents = totalDiscountCents;
+        this.isSynced = isSynced;
     }
 
-    // 計算所有品項加總後的實付金額，用來跟收據總金額比對，驗收解析是否正確
-    public long calculateCalculatedTotalCents() {
-        long sum = 0;
-        for (ReceiptItem item : items) {
-            sum += item.getSubtotalCents();
+    // 核心商業邏輯：計算整張發票「折扣前」的物質總金額
+    public long getOriginalTotalCents() {
+        long total = 0;
+        if (items != null) {
+            for (ReceiptItem item : items) {
+                total += item.getOriginalSubtotalCents();
+            }
         }
-        return sum;
+        return total;
+    }
+
+    // 核心商業邏輯：計算整張發票「實際支付」總額
+    public long getFinalPayableCents() {
+        long itemsTotal = 0;
+        if (items != null) {
+            for (ReceiptItem item : items) {
+                itemsTotal += item.getFinalSubtotalCents();
+            }
+        }
+        return itemsTotal - totalDiscountCents;
     }
 
     // --- Getters ---
     public String getId() { return id; }
-    public String getStoreName() { return storeName; }
-    public String getTransactionDate() { return transactionDate; }
+    public Store getStore() { return store; }
     public List<ReceiptItem> getItems() { return items; }
-    public long getTotalAmountCents() { return totalAmountCents; }
-
-    // --- Setters ---
-    public void setId(String id){
-        this.id = id;
-    }
-    public void setStoreName(String storeName){
-        this.storeName = storeName;
-    }
-    public void setTransactionDate(String transactionDate){
-        this.transactionDate = transactionDate;
-    }
-    public void setTotalAmountCents(long ttlCents){
-        this.totalAmountCents = ttlCents;
-    }
+    public LocalDateTime getPurchaseDate() { return purchaseDate; }
+    public long getTotalDiscountCents() { return totalDiscountCents; }
+    public boolean isSynced() { return isSynced; }
 }

@@ -3,9 +3,16 @@ package com.example.nzreceiptapp.data.parser;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertFalse;
 
+import com.example.nzreceiptapp.domain.logic.CategoryClassifier;
+import com.example.nzreceiptapp.domain.model.Category;
 import com.example.nzreceiptapp.domain.model.ReceiptItem;
+import com.example.nzreceiptapp.domain.repository.ICategoryRepository;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -32,7 +39,6 @@ public class WoolworthsParserTest {
 
         List<ReceiptItem> items = parser.parseRawText(mockOcrText);
 
-        // 驗證過濾功能：系統應自動剔除 TOTAL, SUBTOTAL, EFTPOS 等雜訊，只留 3 項商品
         assertNotNull(items);
         assertEquals(3, items.size());
 
@@ -42,29 +48,27 @@ public class WoolworthsParserTest {
         assertEquals(1.0, milk.getQuantity(), 0.001);
         assertEquals("ea", milk.getUnit());
         assertEquals(389, milk.getUnitPriceCents());
-        assertEquals(389, milk.getTotalPriceCents());
-        System.out.println("milk = " + milk);
+        assertEquals(389, milk.getOriginalSubtotalCents());
 
         // 2. 驗證起司 (免稅標記 N)
         ReceiptItem brie = items.get(1);
         assertEquals("HAMPTONS BRIE 125G", brie.getName());
-        assertEquals(450, brie.getTotalPriceCents());
+        assertEquals(450, brie.getOriginalSubtotalCents());
 
         // 3. 驗證香蕉 (單行內嵌重量計價)
         ReceiptItem bananas = items.get(2);
         assertTrue(bananas.getName().contains("BANANAS LOOSE"));
         assertEquals(0.645, bananas.getQuantity(), 0.001);
         assertEquals("kg", bananas.getUnit());
-        assertEquals(349, bananas.getUnitPriceCents()); // 單價 $3.49 -> 349 Cents
-        assertEquals(225, bananas.getTotalPriceCents()); // 總價 $2.25 -> 225 Cent
+        assertEquals(349, bananas.getUnitPriceCents());
+        assertEquals(225, bananas.getOriginalSubtotalCents());
     }
 
     @Test
     public void testParseReceipt2_MultilineMultiBuy() {
-        // 模擬第二張收據：包含 Woolworths 最經典的「商品名與多件明細跨行拆分」情境
         String mockOcrText = "WOOLWORTHS METRO\n" +
-                "CORN CHIPS 150G              3.00 *\n" + // 第一行：品名與該行總價，尾綴星號
-                "  2 @ 1.50\n" +                           // 第二行：獨立的數量與單價拆解，無總價
+                "CORN CHIPS 150G              3.00 *\n" +
+                "  2 @ 1.50\n" +
                 "WW WATER 24PK                9.00 G\n" +
                 "TOTAL DUE                   12.00\n" +
                 "CASH                         20.00\n";
@@ -72,21 +76,20 @@ public class WoolworthsParserTest {
         List<ReceiptItem> items = parser.parseRawText(mockOcrText);
 
         assertNotNull(items);
-        assertEquals(2, items.size()); // 跨行的兩行應被合併為同一個商品物件
+        assertEquals(2, items.size());
 
         // 1. 驗證多件折落的洋芋片
         ReceiptItem chips = items.get(0);
         assertEquals("CORN CHIPS 150G", chips.getName());
-        assertEquals(2.0, chips.getQuantity(), 0.001); // 應成功回溯更新數量為 2
+        assertEquals(2.0, chips.getQuantity(), 0.001);
         assertEquals("ea", chips.getUnit());
-        assertEquals(150, chips.getUnitPriceCents());  // 單價應為 150 Cents ($1.50)
-        assertEquals(300, chips.getTotalPriceCents());  // 總價應為 300 Cents ($3.00)
-        System.out.println("chips = " + chips);
+        assertEquals(150, chips.getUnitPriceCents());
+        assertEquals(300, chips.getOriginalSubtotalCents());
 
         // 2. 驗證水
         ReceiptItem water = items.get(1);
         assertEquals("WW WATER 24PK", water.getName());
-        assertEquals(900, water.getTotalPriceCents());
+        assertEquals(900, water.getOriginalSubtotalCents());
     }
 
     @Test
@@ -140,13 +143,13 @@ public class WoolworthsParserTest {
         assertEquals(0.520, carrot.getQuantity(), 0.001);
         assertEquals("kg", carrot.getUnit());
         assertEquals(195, carrot.getUnitPriceCents());
-        assertEquals(101, carrot.getTotalPriceCents());
+        assertEquals(101, carrot.getOriginalSubtotalCents());
 
         // 2. Canola Oil
         ReceiptItem oil = items.get(1);
         assertEquals("Ww Canola Oil 2L", oil.getName());
-        assertEquals(799, oil.getTotalPriceCents());
-        assertTrue("Oil should not be special", !oil.getSpecialMk());
+        assertEquals(799, oil.getOriginalSubtotalCents());
+        assertFalse("Oil should not be special", oil.getSpecialMk());
 
         // 3. Keri Apple Orange Mango (Special ^)
         ReceiptItem keri1 = items.get(2);
@@ -158,7 +161,7 @@ public class WoolworthsParserTest {
         assertEquals("Keri Pulpy Orange Drink 1L", keri2.getName());
         assertEquals(2.0, keri2.getQuantity(), 0.001);
         assertEquals(199, keri2.getUnitPriceCents());
-        assertEquals(398, keri2.getTotalPriceCents());
+        assertEquals(398, keri2.getOriginalSubtotalCents());
         assertTrue("Keri 2 should be special", keri2.getSpecialMk());
 
         // 8. Beef Mince (Special ^)
@@ -169,17 +172,70 @@ public class WoolworthsParserTest {
         // 20. Donation
         ReceiptItem donation = items.get(19);
         assertEquals("SALVATION ARMY DONATION", donation.getName());
-        assertEquals(1, donation.getTotalPriceCents());
-        assertTrue("Donation should not be special", !donation.getSpecialMk());
+        assertEquals(1, donation.getOriginalSubtotalCents());
+        assertFalse("Donation should not be special", donation.getSpecialMk());
+    }
+
+    @Test
+    public void testParseWithCategoryClassification() {
+        // 1. 設置 Mock 分類規則
+        MockCategoryRepository mockRepo = new MockCategoryRepository();
+        Category dairy = new Category(UUID.randomUUID().toString(), "Dairy", null);
+        Category produce = new Category(UUID.randomUUID().toString(), "Produce", null);
+        
+        mockRepo.addRule("MILK", dairy);
+        mockRepo.addRule("BANANAS", produce);
+        mockRepo.addRule("Carrot", produce);
+
+        CategoryClassifier classifier = new CategoryClassifier(mockRepo);
+        WoolworthsParser classifierParser = new WoolworthsParser(classifier);
+
+        // 2. 模擬收據文字
+        String mockOcrText = "WW MILK 2L        3.80 G\n" +
+                            "BANANAS LOOSE     2.20 G\n" +
+                            "Carrot            1.00 G\n";
+
+        List<ReceiptItem> items = classifierParser.parseRawText(mockOcrText);
+
+        assertEquals(3, items.size());
+
+        // 3. 驗證分類是否正確綁定
+        assertNotNull("Item 0 category should not be null", items.get(0).getCategory());
+        assertEquals("Dairy", items.get(0).getCategory().getName());
+        
+        assertNotNull("Item 1 category should not be null", items.get(1).getCategory());
+        assertEquals("Produce", items.get(1).getCategory().getName());
+        
+        assertNotNull("Item 2 category should not be null", items.get(2).getCategory());
+        assertEquals("Produce", items.get(2).getCategory().getName());
     }
 
     @Test
     public void testParseEmptyOrGarbageText() {
-        // 邊界條件測試：輸入全為無效文字或空值
         String garbageText = "WELCOME TO WOOLWORTHS\n\nDUPLICATE RECEIPT\nTHANK YOU FOR SHOPPING\n";
         List<ReceiptItem> items = parser.parseRawText(garbageText);
 
         assertNotNull(items);
         assertTrue(items.isEmpty());
+    }
+
+    private static class MockCategoryRepository implements ICategoryRepository {
+        private final Map<String, Category> rules = new HashMap<>();
+
+        public void addRule(String keyword, Category category) {
+            rules.put(keyword, category);
+        }
+
+        @Override
+        public Map<String, Category> getAllClassificationRules() {
+            return rules;
+        }
+
+        @Override
+        public Category findCategoryByName(String name, String parentName) { return null; }
+        @Override
+        public void saveCategory(Category category) {}
+        @Override
+        public void saveRule(String keyword, String categoryId) {}
     }
 }
