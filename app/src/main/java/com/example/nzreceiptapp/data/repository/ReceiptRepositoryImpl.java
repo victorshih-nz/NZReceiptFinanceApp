@@ -1,20 +1,29 @@
 package com.example.nzreceiptapp.data.repository;
 
 import com.example.nzreceiptapp.data.local.dao.ReceiptDao;
+import com.example.nzreceiptapp.data.local.entity.CategoryEntity;
 import com.example.nzreceiptapp.data.local.entity.ItemDiscountEntity;
 import com.example.nzreceiptapp.data.local.entity.ReceiptEntity;
 import com.example.nzreceiptapp.data.local.entity.ReceiptItemEntity;
+import com.example.nzreceiptapp.data.local.entity.ReceiptItemRow;
+import com.example.nzreceiptapp.data.local.entity.ReceiptItemWithDiscounts;
+import com.example.nzreceiptapp.data.local.entity.ReceiptWithItems;
 import com.example.nzreceiptapp.data.local.entity.StoreEntity;
+import com.example.nzreceiptapp.domain.model.Category;
 import com.example.nzreceiptapp.domain.model.ItemDiscount;
 import com.example.nzreceiptapp.domain.model.Receipt;
 import com.example.nzreceiptapp.domain.model.ReceiptItem;
+import com.example.nzreceiptapp.domain.model.ReceiptItemSummary;
 import com.example.nzreceiptapp.domain.model.Store;
 import com.example.nzreceiptapp.domain.repository.IReceiptRepository;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import android.util.Log;
+
 public class ReceiptRepositoryImpl implements IReceiptRepository {
+    private static final String TAG = "ReceiptRepository";
     private final ReceiptDao receiptDao;
 
     public ReceiptRepositoryImpl(ReceiptDao receiptDao) {
@@ -68,5 +77,102 @@ public class ReceiptRepositoryImpl implements IReceiptRepository {
 
         // 4. Save via Transaction
         receiptDao.saveFullReceipt(storeEntity, receiptEntity, itemEntities, discountEntities);
+    }
+
+    @Override
+    public List<Receipt> getAllReceipts() {
+        return getReceiptsPaged(Integer.MAX_VALUE, 0);
+    }
+
+    @Override
+    public Receipt getReceiptById(String id) {
+        ReceiptWithItems entity = receiptDao.getReceiptById(id);
+        return entity != null ? mapToDomain(entity) : null;
+    }
+
+    @Override
+    public List<Receipt> getReceiptsPaged(int limit, int offset) {
+        List<ReceiptWithItems> entities = receiptDao.getReceiptsPaged(limit, offset);
+        List<Receipt> domainReceipts = new ArrayList<>();
+        for (ReceiptWithItems entity : entities) {
+            domainReceipts.add(mapToDomain(entity));
+        }
+        return domainReceipts;
+    }
+
+    @Override
+    public List<ReceiptItemSummary> getAllItemsPaged(int limit, int offset) {
+        List<ReceiptItemRow> entities = receiptDao.getAllItemsPaged(limit, offset);
+        List<ReceiptItemSummary> result = new ArrayList<>();
+        for (ReceiptItemRow row : entities) {
+            ReceiptItem item = mapItemToDomain(row.item, row.discounts, row.category);
+            result.add(new ReceiptItemSummary(item, row.chainName, row.branchName, row.purchaseDate));
+        }
+        return result;
+    }
+
+    @Override
+    public void deleteReceipt(String id) {
+        Log.d(TAG, "Deleting receipt with ID: " + id);
+        try {
+            receiptDao.deleteById(id);
+            Log.d(TAG, "Deletion successful");
+        } catch (Exception e) {
+            Log.e(TAG, "Deletion failed for ID: " + id, e);
+            throw e;
+        }
+    }
+
+    private ReceiptItem mapItemToDomain(ReceiptItemEntity itemEntity, List<ItemDiscountEntity> discountEntities, CategoryEntity categoryEntity) {
+        List<ItemDiscount> discounts = new ArrayList<>();
+        if (discountEntities != null) {
+            for (ItemDiscountEntity discountEntity : discountEntities) {
+                discounts.add(new ItemDiscount(
+                        discountEntity.type,
+                        discountEntity.description,
+                        discountEntity.amountCents
+                ));
+            }
+        }
+
+        Category category = null;
+        if (categoryEntity != null) {
+            category = new Category(
+                    categoryEntity.id,
+                    categoryEntity.name,
+                    null
+            );
+        }
+
+        return new ReceiptItem(
+                itemEntity.id,
+                itemEntity.rawName,
+                itemEntity.cleanedName,
+                itemEntity.quantity,
+                itemEntity.unit,
+                itemEntity.unitPriceCents,
+                discounts,
+                category,
+                itemEntity.specialMk
+        );
+    }
+
+    private Receipt mapToDomain(ReceiptWithItems entity) {
+        StoreEntity storeEntity = entity.store;
+        Store store = new Store(storeEntity.id, storeEntity.chainName, storeEntity.branchName);
+
+        List<ReceiptItem> items = new ArrayList<>();
+        for (ReceiptItemWithDiscounts itemWithDiscounts : entity.items) {
+            items.add(mapItemToDomain(itemWithDiscounts.item, itemWithDiscounts.discounts, itemWithDiscounts.category));
+        }
+
+        return new Receipt(
+                entity.receipt.id,
+                store,
+                items,
+                entity.receipt.purchaseDate,
+                entity.receipt.totalDiscountCents,
+                entity.receipt.isSynced
+        );
     }
 }

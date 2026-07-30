@@ -1,6 +1,7 @@
 package com.example.nzreceiptapp.data.parser;
 
 import com.example.nzreceiptapp.domain.model.ReceiptItem;
+import com.example.nzreceiptapp.domain.parser.IReceiptParser;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -11,8 +12,9 @@ import java.util.regex.Pattern;
 /**
  * 專門解析紐西蘭 PAK'nSAVE 收據文字的解析器 (Data Layer)
  */
-public class PakNSaveParser {
+public class PakNSaveParser implements IReceiptParser {
 
+    @Override
     public List<ReceiptItem> parseRawText(String ocrText) {
         List<ReceiptItem> items = new ArrayList<>();
         if (ocrText == null || ocrText.trim().isEmpty()) {

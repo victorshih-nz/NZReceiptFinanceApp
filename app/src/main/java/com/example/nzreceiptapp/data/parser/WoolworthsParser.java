@@ -4,6 +4,7 @@ import com.example.nzreceiptapp.domain.logic.CategoryClassifier;
 import com.example.nzreceiptapp.domain.model.Category;
 import com.example.nzreceiptapp.domain.model.ItemDiscount;
 import com.example.nzreceiptapp.domain.model.ReceiptItem;
+import com.example.nzreceiptapp.domain.parser.IReceiptParser;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -14,7 +15,7 @@ import java.util.regex.Pattern;
 /**
  * 專門解析紐西蘭 Woolworths 收據文字的解析器 (Data Layer)
  */
-public class WoolworthsParser {
+public class WoolworthsParser implements IReceiptParser {
 
     private final CategoryClassifier classifier;
 
@@ -38,6 +39,7 @@ public class WoolworthsParser {
     // 純多件折落模式 (不含總價在同行的狀況)
     private static final Pattern MULTI_BUY_ONLY = Pattern.compile("^\\s*(\\d+(?:\\.\\d+)?)\\s*@\\s*\\$?(\\d+\\.\\d+)\\s*$");
 
+    @Override
     public List<ReceiptItem> parseRawText(String rawText) {
         List<ReceiptItem> items = new ArrayList<>();
         if (rawText == null || rawText.trim().isEmpty()) {

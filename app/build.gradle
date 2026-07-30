@@ -31,13 +31,36 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+    buildFeatures {
+        viewBinding true
+    }
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+    }
 }
 
 dependencies {
     implementation libs.activity.ktx
+    implementation libs.fragment.ktx
     implementation libs.appcompat
     implementation libs.constraintlayout
     implementation libs.material
+
+    // Navigation
+    implementation libs.navigation.fragment
+    implementation libs.navigation.ui
+
+    // CameraX
+    implementation libs.camera.core
+    implementation libs.camera.camera2
+    implementation libs.camera.lifecycle
+    implementation libs.camera.view
+
     testImplementation libs.junit
     androidTestImplementation libs.espresso.core
     androidTestImplementation libs.ext.junit
@@ -47,4 +70,10 @@ dependencies {
 
     // 單元測試庫（讓我們不用開模擬器就能在 VS Code 跑測試）
     testImplementation "junit:junit:4.13.2"
+    testImplementation "org.mockito:mockito-core:5.11.0"
+    testImplementation "androidx.arch.core:core-testing:2.2.0"
+
+    // Google ML Kit Text Recognition
+    implementation 'com.google.android.gms:play-services-mlkit-text-recognition:19.0.1'
+    implementation "androidx.swiperefreshlayout:swiperefreshlayout:1.1.0"
 }
