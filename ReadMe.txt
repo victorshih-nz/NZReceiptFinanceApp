@@ -3,22 +3,57 @@ An Android-based expense management and localized financial analytics system bui
 
 🏗️ System Architecture
 This project strictly adheres to Clean Architecture principles, decoupling core business logic from data frameworks and the UI layer to guarantee testability and smooth migration to cloud-sync interfaces.
-
-Plaintext
 app/src/main/java/com/example/nzreceiptapp/
-├── domain/               # Core Business Logic Layer (Pure Java, zero Android dependencies)
-│   ├── model/           # Enterprise Domain Models (e.g., ReceiptItem, ExpenseCategory)
-│   └── usecase/         # Application Use Cases (e.g., ParseReceiptUseCase, GetFilteredExpensesUseCase)
+├── domain/                         # 核心業務邏輯層 (純 Java/Kotlin，無 Android 依賴)
+│   ├── logic/                      # 業務邏輯實作
+│   │   └── CategoryClassifier      # 自動分類識別器
+│   ├── model/                      # 領域實體模型 (Entities)
+│   │   ├── Receipt / ReceiptItem   # 收據、品項模型
+│   │   ├── Category / Store        # 分類、商店模型
+│   │   └── ReceiptItemSummary      # 用於扁平化清單的彙整模型
+│   ├── parser/                     # 解析器介面
+│   │   ├── IReceiptParser          # 超市解析器標準介面
+│   │   └── IParserFactory          # 解析器工廠介面
+│   ├── repository/                 # 資料倉儲介面
+│   │   ├── IReceiptRepository      # 收據儲存與讀取介面
+│   │   └── ICategoryRepository     # 分類規則讀取介面
+│   ├── service/                    # 外部服務介面
+│   │   └── IOCRService             # 文字辨識服務介面
+│   └── usecase/                    # 應用案例 (Use Cases)
+│       ├── ParseReceiptUseCase     # 執行收據解析
+│       ├── SaveReceiptUseCase      # 執行收據儲存
+│       ├── GetAnalyticsUseCase     # 獲取統計分析
+│       └── GetReceiptsPagedUseCase # 分頁獲取歷史紀錄
 │
-├── data/                 # Data and Infrastructure Layer (Data Source Implementations)
-│   ├── local/db/        # SQLite / Room DB configuration (Entities, DAOs)
-│   ├── ocr/             # OCR text extraction abstraction wrappers
-│   └── parser/          # Supermarket-specific parsers (WoolworthsParser, PaknSaveParser, etc.)
+├── data/                           # 資料與基礎設施層 (實作 Domain 介面)
+│   ├── local/                      # 本地資料庫 (Room/SQLite)
+│   │   ├── dao/                    # Data Access Objects (SQL 邏輯)
+│   │   ├── entity/                 # 資料表實體與關係類 (Relations)
+│   │   └── AppDatabase             # Room 資料庫配置
+│   ├── ocr/                        # OCR 具體實作
+│   │   └── MLKitOCRService         # Google ML Kit 文字辨識實作
+│   ├── parser/                     # 特定超市解析邏輯
+│   │   ├── WoolworthsParser        # Woolworths 格式解析 (Regex)
+│   │   ├── PakNSaveParser          # PAK'nSAVE 格式解析
+│   │   └── ParserProvider          # 解析器分發實作
+│   └── repository/                 # 資料儲存實作
+│       ├── ReceiptRepositoryImpl    # 處理資料映射 (Mapping) 與資料庫操作
+│       └── CategoryRepositoryImpl   # 處理分類規則讀取
 │
-└── presentation/         # Presentation Layer (MVVM Architecture)
-    ├── viewmodel/       # UI state preservation and Use Case invocation
-    ├── view/            # Activities, Fragments, and custom charting (MPAndroidChart)
-    └── adapter/         # UI list item adapters
+└── presentation/                   # 展示層 (UI 與 MVVM)
+    ├── base/                       # 基礎類別 (BaseViewModel, Factory)
+    ├── viewmodel/                  # 介面狀態管理 (UI State)
+    │   ├── ScannerViewModel        # 掃描流程狀態
+    │   └── HistoryViewModel        # 歷史清單與分頁狀態
+    ├── view/                       # Activity / Fragments (UI 介面)
+    │   ├── ScannerFragment         # 相機與拍照畫面
+    │   ├── HistoryFragment         # 歷史分頁清單
+    │   └── ReceiptDetailFragment   # 收據明細詳情頁
+    └── adapter/                    # RecyclerView 適配器
+        ├── ReceiptAdapter          # 收據卡片適配器
+        └── ReceiptItemAdapter      # 商品明細適配器
+
+
 🛠️ Tech Stack
 Development Language: Java 26
 
