@@ -12,10 +12,11 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
+import com.example.nzreceiptapp.NzReceiptApplication;
 import com.example.nzreceiptapp.databinding.FragmentHistoryBinding;
+import com.example.nzreceiptapp.di.ViewModelFactory;
 import com.example.nzreceiptapp.presentation.adapter.ReceiptAdapter;
 import com.example.nzreceiptapp.presentation.adapter.ReceiptItemSummaryAdapter;
-import com.example.nzreceiptapp.presentation.base.ViewModelFactory;
 import com.example.nzreceiptapp.presentation.viewmodel.HistoryViewModel;
 import com.google.android.material.tabs.TabLayout;
 import com.example.nzreceiptapp.R;
@@ -32,7 +33,8 @@ public class HistoryFragment extends Fragment {
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        ViewModelFactory factory = new ViewModelFactory(requireContext());
+        NzReceiptApplication app = (NzReceiptApplication) requireActivity().getApplication();
+        ViewModelFactory factory = new ViewModelFactory(app.getAppContainer());
         viewModel = new ViewModelProvider(this, factory).get(HistoryViewModel.class);
     }
 

@@ -38,7 +38,7 @@ public class ScannerViewModelTest {
     @Before
     public void setUp() {
         MockitoAnnotations.openMocks(this);
-        viewModel = new ScannerViewModel(ocrService, parseUseCase, saveUseCase);
+        viewModel = new ScannerViewModel(ocrService, parseUseCase, saveUseCase, Runnable::run);
     }
 
     @Test

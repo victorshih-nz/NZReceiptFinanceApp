@@ -23,8 +23,9 @@ import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 
+import com.example.nzreceiptapp.NzReceiptApplication;
 import com.example.nzreceiptapp.databinding.FragmentScannerBinding;
-import com.example.nzreceiptapp.presentation.base.ViewModelFactory;
+import com.example.nzreceiptapp.di.ViewModelFactory;
 import com.example.nzreceiptapp.presentation.viewmodel.ScannerViewModel;
 import com.google.common.util.concurrent.ListenableFuture;
 
@@ -66,7 +67,8 @@ public class ScannerFragment extends Fragment {
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        ViewModelFactory factory = new ViewModelFactory(requireContext());
+        NzReceiptApplication app = (NzReceiptApplication) requireActivity().getApplication();
+        ViewModelFactory factory = new ViewModelFactory(app.getAppContainer());
         viewModel = new ViewModelProvider(this, factory).get(ScannerViewModel.class);
     }
 

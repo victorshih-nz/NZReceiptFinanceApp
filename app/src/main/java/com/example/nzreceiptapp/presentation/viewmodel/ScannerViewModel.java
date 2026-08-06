@@ -12,6 +12,7 @@ import com.example.nzreceiptapp.domain.usecase.SaveReceiptUseCase;
 import com.example.nzreceiptapp.presentation.base.BaseViewModel;
 
 import java.time.LocalDateTime;
+import java.util.concurrent.Executor;
 
 /**
  * 處理收據掃描流程的 ViewModel
@@ -25,14 +26,17 @@ public class ScannerViewModel extends BaseViewModel {
     private final IOCRService ocrService;
     private final ParseReceiptUseCase parseUseCase;
     private final SaveReceiptUseCase saveUseCase;
+    private final Executor ioExecutor;
 
     private final MutableLiveData<State> state = new MutableLiveData<>(State.IDLE);
     private final MutableLiveData<Receipt> lastProcessedReceipt = new MutableLiveData<>();
 
-    public ScannerViewModel(IOCRService ocrService, ParseReceiptUseCase parseUseCase, SaveReceiptUseCase saveUseCase) {
+    public ScannerViewModel(IOCRService ocrService, ParseReceiptUseCase parseUseCase,
+                            SaveReceiptUseCase saveUseCase, Executor ioExecutor) {
         this.ocrService = ocrService;
         this.parseUseCase = parseUseCase;
         this.saveUseCase = saveUseCase;
+        this.ioExecutor = ioExecutor;
     }
 
     public LiveData<State> getState() { return state; }
@@ -61,7 +65,7 @@ public class ScannerViewModel extends BaseViewModel {
     private void parseAndSave(String rawText, String chainName, String branchName) {
         Log.d(TAG, "Raw OCR Text: \n" + rawText);
         
-        new Thread(() -> {
+        ioExecutor.execute(() -> {
             state.postValue(State.PARSING_RECEIPT);
             try {
                 // 執行解析 (Domain Logic)
@@ -78,7 +82,7 @@ public class ScannerViewModel extends BaseViewModel {
                 Log.e(TAG, "Error during parsing/saving", e);
                 handleError("Parsing/Saving failed: " + e.getMessage());
             }
-        }).start();
+        });
     }
 
     private void handleError(String message) {
