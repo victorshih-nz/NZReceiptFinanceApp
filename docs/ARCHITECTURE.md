@@ -48,6 +48,27 @@ Fragment -> ViewModel -> UseCase -> Repository contract
 The Fragment observes state and sends user actions to the ViewModel. It does not
 create a database, repository, use case, or background thread.
 
+## Receipt capture flow
+
+```mermaid
+flowchart TD
+    Image["Camera / gallery"] --> Store["Persist private image copy"]
+    Store --> OCR["ML Kit OCR"]
+    OCR --> Parse["Detect chain and parse"]
+    Parse --> Review["Review / edit draft"]
+    Review -->|Confirm| Save["Room transaction"]
+    Review -->|Cancel| Discard["Delete draft image"]
+```
+
+`ScannerUiState` is the single source of truth for this workflow. OCR and parsing
+produce an in-memory draft; no receipt row is written until the user confirms it
+on the review screen. The persisted receipt keeps its private image URI, raw OCR
+text and recognised printed total for later debugging or reprocessing.
+
+Room schema version 2 adds those source fields, category foreign-key indexes and
+a unique store chain/branch index. `MIGRATION_1_2` canonicalises existing store
+rows before adding the unique index.
+
 ## Adding a feature
 
 1. Define or extend the domain model and repository contract.

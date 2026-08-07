@@ -12,7 +12,10 @@ import androidx.room.PrimaryKey;
                 parentColumns = "id",
                 childColumns = "category_id",
                 onDelete = ForeignKey.CASCADE),
-        indices = {@Index(value = "keyword", unique = true)})
+        indices = {
+                @Index(value = "keyword", unique = true),
+                @Index("category_id")
+        })
 public class CategoryRuleEntity {
     @PrimaryKey(autoGenerate = true)
     public int id;

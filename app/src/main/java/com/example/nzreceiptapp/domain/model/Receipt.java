@@ -13,15 +13,28 @@ public class Receipt {
     private final LocalDateTime purchaseDate;    // 發票消費時間
     private final long totalDiscountCents;       // 整張發票的額外折扣
     private final boolean isSynced;              // 雲端同步旗標
+    private final String rawOcrText;              // 原始 OCR 文字，供日後重新解析/查錯
+    private final String imageUri;                // 原始圖片來源（cache path 或 content URI）
+    private final Long printedTotalCents;         // 收據上印出的總額；無法辨識時為 null
 
     public Receipt(String id, Store store, List<ReceiptItem> items, 
                    LocalDateTime purchaseDate, long totalDiscountCents, boolean isSynced) {
+        this(id, store, items, purchaseDate, totalDiscountCents, isSynced,
+                null, null, null);
+    }
+
+    public Receipt(String id, Store store, List<ReceiptItem> items,
+                   LocalDateTime purchaseDate, long totalDiscountCents, boolean isSynced,
+                   String rawOcrText, String imageUri, Long printedTotalCents) {
         this.id = id;
         this.store = store;
         this.items = items;
         this.purchaseDate = purchaseDate;
         this.totalDiscountCents = totalDiscountCents;
         this.isSynced = isSynced;
+        this.rawOcrText = rawOcrText;
+        this.imageUri = imageUri;
+        this.printedTotalCents = printedTotalCents;
     }
 
     // 核心商業邏輯：計算整張發票「折扣前」的物質總金額
@@ -53,4 +66,7 @@ public class Receipt {
     public LocalDateTime getPurchaseDate() { return purchaseDate; }
     public long getTotalDiscountCents() { return totalDiscountCents; }
     public boolean isSynced() { return isSynced; }
+    public String getRawOcrText() { return rawOcrText; }
+    public String getImageUri() { return imageUri; }
+    public Long getPrintedTotalCents() { return printedTotalCents; }
 }

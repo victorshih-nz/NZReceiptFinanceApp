@@ -10,10 +10,12 @@ public class CategorySeeder {
     public static void seedFromText(String content, ICategoryRepository repository) {
         String[] lines = content.split("\\n");
         for (String line : lines) {
+            line = line.trim();
+            if (line.isEmpty() || line.startsWith("#")) continue;
             String[] parts = line.split("\\t");
             if (parts.length < 3) continue;
 
-            String keyword = parts[0].trim();
+            String keyword = parts[0].trim().toLowerCase();
             String parentName = parts[1].trim();
             String subName = parts[2].trim();
 

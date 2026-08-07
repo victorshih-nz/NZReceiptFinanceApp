@@ -17,8 +17,8 @@ import java.util.List;
 
 @Dao
 public interface ReceiptDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    void insertStore(StoreEntity store);
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    long insertStore(StoreEntity store);
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void insertReceipt(ReceiptEntity receipt);
@@ -48,14 +48,41 @@ public interface ReceiptDao {
     @Query("DELETE FROM receipts WHERE id = :id")
     void deleteById(String id);
 
+    @Query("SELECT * FROM stores WHERE chain_name = :chainName AND branch_name = :branchName LIMIT 1")
+    StoreEntity findStore(String chainName, String branchName);
+
+    @Query("SELECT store_id FROM receipts WHERE id = :receiptId LIMIT 1")
+    String findStoreIdForReceipt(String receiptId);
+
+    @Query("DELETE FROM stores WHERE id = :storeId AND NOT EXISTS "
+            + "(SELECT 1 FROM receipts WHERE store_id = :storeId)")
+    void deleteStoreIfUnused(String storeId);
+
     @Transaction
     default void saveFullReceipt(StoreEntity store, ReceiptEntity receipt, 
                                 List<ReceiptItemEntity> items, List<ItemDiscountEntity> discounts) {
-        insertStore(store);
+        StoreEntity existingStore = findStore(store.chainName, store.branchName);
+        if (existingStore == null) {
+            insertStore(store);
+            existingStore = findStore(store.chainName, store.branchName);
+        }
+        if (existingStore == null) {
+            throw new IllegalStateException("Unable to create or find store");
+        }
+        receipt.storeId = existingStore.id;
         insertReceipt(receipt);
         insertReceiptItems(items);
         if (discounts != null && !discounts.isEmpty()) {
             insertItemDiscounts(discounts);
+        }
+    }
+
+    @Transaction
+    default void deleteReceiptAndUnusedStore(String receiptId) {
+        String storeId = findStoreIdForReceipt(receiptId);
+        deleteById(receiptId);
+        if (storeId != null) {
+            deleteStoreIfUnused(storeId);
         }
     }
 }

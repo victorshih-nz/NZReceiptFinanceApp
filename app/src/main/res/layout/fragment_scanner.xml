@@ -17,30 +17,62 @@
         android:id="@+id/button_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
+        android:orientation="vertical"
         android:padding="16dp"
         android:gravity="center"
         app:layout_constraintBottom_toBottomOf="parent">
 
-        <Button
-            android:id="@+id/btn_capture"
-            android:layout_width="wrap_content"
+        <Spinner
+            android:id="@+id/spinner_chain"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/action_capture"
-            android:layout_marginEnd="8dp"/>
+            android:entries="@array/supermarket_choices"
+            android:background="@android:color/white"
+            android:contentDescription="Supermarket" />
+
+        <EditText
+            android:id="@+id/edit_branch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@android:color/white"
+            android:hint="Branch (optional)"
+            android:inputType="textCapWords"
+            android:padding="8dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_capture"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/action_capture" />
+
+            <Button
+                android:id="@+id/btn_gallery"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/action_gallery" />
+
+            <Button
+                android:id="@+id/btn_test_sample"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/action_test_sample" />
+        </LinearLayout>
 
         <Button
-            android:id="@+id/btn_gallery"
-            android:layout_width="wrap_content"
+            android:id="@+id/btn_review"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/action_gallery"
-            android:layout_marginEnd="8dp"/>
-
-        <Button
-            android:id="@+id/btn_test_sample"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/action_test_sample" />
+            android:text="@string/action_review"
+            android:visibility="gone" />
     </LinearLayout>
 
     <ProgressBar

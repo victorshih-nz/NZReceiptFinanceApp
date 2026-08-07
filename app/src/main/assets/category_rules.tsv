@@ -1,0 +1,42 @@
+# keyword	parent category	subcategory
+milk	Food	Dairy & Eggs
+cheese	Food	Dairy & Eggs
+yoghurt	Food	Dairy & Eggs
+yogurt	Food	Dairy & Eggs
+egg	Food	Dairy & Eggs
+bread	Food	Bakery
+roll	Food	Bakery
+croissant	Food	Bakery
+chicken	Food	Meat
+beef	Food	Meat
+pork	Food	Meat
+lamb	Food	Meat
+salmon	Food	Seafood
+fish	Food	Seafood
+apple	Food	Fruit
+banana	Food	Fruit
+orange	Food	Fruit
+kiwifruit	Food	Fruit
+potato	Food	Vegetables
+onion	Food	Vegetables
+tomato	Food	Vegetables
+broccoli	Food	Vegetables
+rice	Food	Pantry
+pasta	Food	Pantry
+flour	Food	Pantry
+cereal	Food	Breakfast
+oats	Food	Breakfast
+chocolate	Food	Snacks
+chips	Food	Snacks
+biscuit	Food	Snacks
+coffee	Food	Drinks
+tea	Food	Drinks
+juice	Food	Drinks
+detergent	Household	Cleaning
+cleaner	Household	Cleaning
+toilet paper	Household	Paper Products
+tissue	Household	Paper Products
+shampoo	Personal Care	Hair Care
+conditioner	Personal Care	Hair Care
+soap	Personal Care	Body Care
+toothpaste	Personal Care	Oral Care

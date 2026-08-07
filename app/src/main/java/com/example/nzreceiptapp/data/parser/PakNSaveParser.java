@@ -1,5 +1,7 @@
 package com.example.nzreceiptapp.data.parser;
 
+import com.example.nzreceiptapp.domain.logic.CategoryClassifier;
+import com.example.nzreceiptapp.domain.model.ParsedReceipt;
 import com.example.nzreceiptapp.domain.model.ReceiptItem;
 import com.example.nzreceiptapp.domain.parser.IReceiptParser;
 import java.util.ArrayList;
@@ -13,6 +15,18 @@ import java.util.regex.Pattern;
  * 專門解析紐西蘭 PAK'nSAVE 收據文字的解析器 (Data Layer)
  */
 public class PakNSaveParser implements IReceiptParser {
+
+    private static final Pattern PRINTED_TOTAL_PATTERN = Pattern.compile(
+            "(?im)^\\s*TOTAL(?:\\s+DUE)?\\s+\\$?\\s*(\\d+\\.\\d{2})\\s*$");
+    private final CategoryClassifier classifier;
+
+    public PakNSaveParser() {
+        this(null);
+    }
+
+    public PakNSaveParser(CategoryClassifier classifier) {
+        this.classifier = classifier;
+    }
 
     @Override
     public List<ReceiptItem> parseRawText(String ocrText) {
@@ -73,7 +87,10 @@ public class PakNSaveParser implements IReceiptParser {
                     String finalName = (pendingItemName != null) ? pendingItemName : matchedPart;
 
                     items.add(new ReceiptItem(
-                            itemId, matchedPart, finalName, quantity, unit, unitPriceCents, Collections.emptyList(), null, false
+                            itemId, matchedPart, finalName, quantity, unit, unitPriceCents,
+                            Collections.emptyList(),
+                            classifier != null ? classifier.classify(finalName) : null,
+                            false
                     ));
 
                     pendingItemName = null;
@@ -84,7 +101,10 @@ public class PakNSaveParser implements IReceiptParser {
                 long unitPriceCents = Math.round(matchedPrice * 100);
 
                 items.add(new ReceiptItem(
-                        itemId, matchedPart, matchedPart, 1.0, "ea", unitPriceCents, Collections.emptyList(), null, false
+                        itemId, matchedPart, matchedPart, 1.0, "ea", unitPriceCents,
+                        Collections.emptyList(),
+                        classifier != null ? classifier.classify(matchedPart) : null,
+                        false
                 ));
 
                 pendingItemName = null;
@@ -97,5 +117,15 @@ public class PakNSaveParser implements IReceiptParser {
         }
 
         return items;
+    }
+
+    @Override
+    public ParsedReceipt parseReceipt(String rawText) {
+        List<ReceiptItem> items = parseRawText(rawText);
+        Matcher matcher = PRINTED_TOTAL_PATTERN.matcher(rawText == null ? "" : rawText);
+        Long total = matcher.find()
+                ? Math.round(Double.parseDouble(matcher.group(1)) * 100)
+                : null;
+        return new ParsedReceipt(items, total);
     }
 }

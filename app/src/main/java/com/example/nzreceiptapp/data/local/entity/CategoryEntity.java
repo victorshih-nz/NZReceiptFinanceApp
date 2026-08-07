@@ -4,13 +4,15 @@ import androidx.annotation.NonNull;
 import androidx.room.ColumnInfo;
 import androidx.room.Entity;
 import androidx.room.ForeignKey;
+import androidx.room.Index;
 import androidx.room.PrimaryKey;
 
 @Entity(tableName = "categories",
         foreignKeys = @ForeignKey(entity = CategoryEntity.class,
                 parentColumns = "id",
                 childColumns = "parent_id",
-                onDelete = ForeignKey.CASCADE))
+                onDelete = ForeignKey.CASCADE),
+        indices = {@Index("parent_id")})
 public class CategoryEntity {
     @PrimaryKey
     @NonNull

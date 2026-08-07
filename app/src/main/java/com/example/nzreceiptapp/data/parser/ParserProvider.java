@@ -27,10 +27,23 @@ public class ParserProvider implements IParserFactory {
         if (normalized.contains("woolworths") || normalized.contains("countdown")) {
             return new WoolworthsParser(classifier);
         } else if (normalized.contains("paknsave")) {
-            return new PakNSaveParser();
+            return new PakNSaveParser(classifier);
         }
         
         // 預設返回 null 或一個基礎解析器
+        return null;
+    }
+
+    @Override
+    public String detectChain(String rawText) {
+        if (rawText == null) return null;
+        String normalized = rawText.toLowerCase().replace("'", "").replace(" ", "");
+        if (normalized.contains("woolworths") || normalized.contains("countdown")) {
+            return "Woolworths";
+        }
+        if (normalized.contains("paknsave")) {
+            return "PAK'nSAVE";
+        }
         return null;
     }
 }

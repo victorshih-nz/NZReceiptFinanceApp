@@ -41,11 +41,26 @@ public class ParseReceiptUseCaseTest {
         assertEquals(date, receipt.getPurchaseDate());
         assertEquals(1, receipt.getItems().size());
         assertEquals("Mock Item", receipt.getItems().get(0).getName());
+        assertEquals(rawText, receipt.getRawOcrText());
     }
 
     @Test(expected = IllegalArgumentException.class)
     public void testExecute_UnsupportedChain() {
         useCase.execute("text", "UnknownStore", "Branch", null);
+    }
+
+    @Test
+    public void testExecute_AutoDetectsChain() {
+        Receipt receipt = useCase.execute(
+                "WOOLWORTHS\nMock receipt content",
+                "Auto detect",
+                "",
+                null,
+                "content://receipt");
+
+        assertEquals("Woolworths", receipt.getStore().getChainName());
+        assertEquals("Unknown Branch", receipt.getStore().getBranchName());
+        assertEquals("content://receipt", receipt.getImageUri());
     }
 
     private static class MockParserFactory implements IParserFactory {
@@ -57,6 +72,11 @@ public class ParseReceiptUseCaseTest {
                 );
             }
             return null;
+        }
+
+        @Override
+        public String detectChain(String rawText) {
+            return rawText.contains("WOOLWORTHS") ? "Woolworths" : null;
         }
     }
 }

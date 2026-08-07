@@ -8,18 +8,21 @@ text into structured purchase data, and browsing saved receipts.
 Working foundations:
 
 - Camera/gallery image input with Google ML Kit OCR
+- Review/edit step before a receipt is saved
+- Auto-detection or manual selection of Woolworths and PAK'nSAVE
 - Rule-based receipt parsers for Woolworths/Countdown and PAK'nSAVE
+- Bundled two-level category rules with editable category selection
 - Room persistence for stores, receipts, items, discounts, and categories
 - Receipt history, item history, receipt details, and deletion
 - Unit tests for parsers, use cases, domain logic, and ViewModels
 
 Still in progress:
 
-- The scanner currently assumes Woolworths and a placeholder branch name
 - Analytics navigation exists, but its screen is not implemented
-- Category seed data is not yet connected to application startup
 - New World and Four Square parsers are not implemented
 - Error messages are basic and are not yet modelled as one-time UI events
+- Printed totals are recognised for validation, but parser coverage still needs
+  more real receipt fixtures
 
 ## Architecture
 

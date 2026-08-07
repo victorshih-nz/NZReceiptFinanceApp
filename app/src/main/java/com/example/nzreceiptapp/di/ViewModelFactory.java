@@ -25,6 +25,8 @@ public final class ViewModelFactory implements ViewModelProvider.Factory {
                     container.ocrService(),
                     container.parseReceiptUseCase(),
                     container.saveReceiptUseCase(),
+                    container.getCategoriesUseCase(),
+                    container.imageStore(),
                     container.ioExecutor()
             );
         }

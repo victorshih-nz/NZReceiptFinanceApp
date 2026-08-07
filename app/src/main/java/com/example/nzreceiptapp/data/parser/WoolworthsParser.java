@@ -3,6 +3,7 @@ package com.example.nzreceiptapp.data.parser;
 import com.example.nzreceiptapp.domain.logic.CategoryClassifier;
 import com.example.nzreceiptapp.domain.model.Category;
 import com.example.nzreceiptapp.domain.model.ItemDiscount;
+import com.example.nzreceiptapp.domain.model.ParsedReceipt;
 import com.example.nzreceiptapp.domain.model.ReceiptItem;
 import com.example.nzreceiptapp.domain.parser.IReceiptParser;
 import java.util.ArrayList;
@@ -38,6 +39,9 @@ public class WoolworthsParser implements IReceiptParser {
 
     // 純多件折落模式 (不含總價在同行的狀況)
     private static final Pattern MULTI_BUY_ONLY = Pattern.compile("^\\s*(\\d+(?:\\.\\d+)?)\\s*@\\s*\\$?(\\d+\\.\\d+)\\s*$");
+
+    private static final Pattern PRINTED_TOTAL_PATTERN = Pattern.compile(
+            "(?im)^\\s*TOTAL(?:\\s+DUE)?\\s+\\$?\\s*(\\d+\\.\\d{2})\\s*$");
 
     @Override
     public List<ReceiptItem> parseRawText(String rawText) {
@@ -162,6 +166,16 @@ public class WoolworthsParser implements IReceiptParser {
         }
 
         return items;
+    }
+
+    @Override
+    public ParsedReceipt parseReceipt(String rawText) {
+        List<ReceiptItem> items = parseRawText(rawText);
+        Matcher matcher = PRINTED_TOTAL_PATTERN.matcher(rawText == null ? "" : rawText);
+        Long total = matcher.find()
+                ? Math.round(Double.parseDouble(matcher.group(1)) * 100)
+                : null;
+        return new ParsedReceipt(items, total);
     }
 
     private boolean isTransactionMetadata(String line) {

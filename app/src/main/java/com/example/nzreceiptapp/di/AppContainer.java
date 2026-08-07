@@ -3,6 +3,8 @@ package com.example.nzreceiptapp.di;
 import android.content.Context;
 
 import com.example.nzreceiptapp.data.local.AppDatabase;
+import com.example.nzreceiptapp.data.local.BundledCategoryInitializer;
+import com.example.nzreceiptapp.data.local.LocalReceiptImageStore;
 import com.example.nzreceiptapp.data.ocr.MLKitOCRService;
 import com.example.nzreceiptapp.data.parser.ParserProvider;
 import com.example.nzreceiptapp.data.repository.CategoryRepositoryImpl;
@@ -11,8 +13,10 @@ import com.example.nzreceiptapp.domain.logic.CategoryClassifier;
 import com.example.nzreceiptapp.domain.repository.ICategoryRepository;
 import com.example.nzreceiptapp.domain.repository.IReceiptRepository;
 import com.example.nzreceiptapp.domain.service.IOCRService;
+import com.example.nzreceiptapp.domain.service.IReceiptImageStore;
 import com.example.nzreceiptapp.domain.usecase.DeleteReceiptUseCase;
 import com.example.nzreceiptapp.domain.usecase.GetAllItemsPagedUseCase;
+import com.example.nzreceiptapp.domain.usecase.GetCategoriesUseCase;
 import com.example.nzreceiptapp.domain.usecase.GetReceiptByIdUseCase;
 import com.example.nzreceiptapp.domain.usecase.GetReceiptsPagedUseCase;
 import com.example.nzreceiptapp.domain.usecase.ParseReceiptUseCase;
@@ -38,6 +42,8 @@ public final class AppContainer {
     private final GetAllItemsPagedUseCase getAllItemsPagedUseCase;
     private final GetReceiptByIdUseCase getReceiptByIdUseCase;
     private final DeleteReceiptUseCase deleteReceiptUseCase;
+    private final GetCategoriesUseCase getCategoriesUseCase;
+    private final IReceiptImageStore imageStore;
 
     public AppContainer(Context context) {
         Context applicationContext = context.getApplicationContext();
@@ -45,19 +51,23 @@ public final class AppContainer {
 
         ICategoryRepository categoryRepository =
                 new CategoryRepositoryImpl(database.categoryDao());
+        imageStore = new LocalReceiptImageStore(applicationContext);
         IReceiptRepository receiptRepository =
-                new ReceiptRepositoryImpl(database.receiptDao());
+                new ReceiptRepositoryImpl(database.receiptDao(), imageStore);
 
         CategoryClassifier classifier = new CategoryClassifier(categoryRepository);
         ParserProvider parserProvider = new ParserProvider(classifier);
+        BundledCategoryInitializer categoryInitializer =
+                new BundledCategoryInitializer(applicationContext, categoryRepository);
 
         ocrService = new MLKitOCRService(applicationContext);
-        parseReceiptUseCase = new ParseReceiptUseCase(parserProvider);
+        parseReceiptUseCase = new ParseReceiptUseCase(parserProvider, categoryInitializer);
         saveReceiptUseCase = new SaveReceiptUseCase(receiptRepository);
         getReceiptsPagedUseCase = new GetReceiptsPagedUseCase(receiptRepository);
         getAllItemsPagedUseCase = new GetAllItemsPagedUseCase(receiptRepository);
         getReceiptByIdUseCase = new GetReceiptByIdUseCase(receiptRepository);
         deleteReceiptUseCase = new DeleteReceiptUseCase(receiptRepository);
+        getCategoriesUseCase = new GetCategoriesUseCase(categoryRepository);
     }
 
     Executor ioExecutor() {
@@ -90,5 +100,13 @@ public final class AppContainer {
 
     DeleteReceiptUseCase deleteReceiptUseCase() {
         return deleteReceiptUseCase;
+    }
+
+    GetCategoriesUseCase getCategoriesUseCase() {
+        return getCategoriesUseCase;
+    }
+
+    IReceiptImageStore imageStore() {
+        return imageStore;
     }
 }

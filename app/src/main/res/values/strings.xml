@@ -8,4 +8,10 @@
     <string name="action_test_sample">Test Sample</string>
     <string name="msg_no_receipts">No receipts yet. Start scanning!</string>
     <string name="action_delete">Delete</string>
+    <string name="action_review">Review receipt</string>
+    <string-array name="supermarket_choices">
+        <item>Auto detect</item>
+        <item>Woolworths</item>
+        <item>PAK'nSAVE</item>
+    </string-array>
 </resources>

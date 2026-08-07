@@ -15,8 +15,9 @@ every file at once.
 
 ## Phase 2 — predictable UI state
 
-- [ ] Replace separate loading/data/error LiveData fields with one immutable UI
-  state per screen.
+- [x] Replace Scanner loading/data/error fields with one immutable
+  `ScannerUiState`.
+- [ ] Apply the same state approach to History and Analytics later.
 - [ ] Model Toast/navigation messages as one-time events.
 - [ ] Prevent duplicate loads when the History screen and tabs initialise.
 - [ ] Stop pagination at the final page and expose retry actions.
@@ -24,11 +25,13 @@ every file at once.
 
 ## Phase 3 — receipt capture workflow
 
-- [ ] Add a review/edit screen between parsing and saving.
-- [ ] Detect or ask for supermarket chain instead of hard-coding Woolworths.
+- [x] Add a review/edit screen between parsing and saving.
+- [x] Detect or ask for supermarket chain instead of hard-coding Woolworths.
+- [x] Persist the source image, raw OCR text and recognised printed total.
 - [ ] Separate OCR output, parser warnings, and validation failures.
 - [ ] Add New World and Four Square only after shared parser fixtures are defined.
-- [ ] Connect category seed data and define a repeatable migration strategy.
+- [x] Connect bundled category seed data and define the Room v1-to-v2 migration.
+- [x] Reuse canonical Store rows and remove unused Store rows after deletion.
 
 ## Phase 4 — data quality and analytics
 
