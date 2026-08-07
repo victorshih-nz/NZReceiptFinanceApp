@@ -13,14 +13,10 @@ import com.example.nzreceiptapp.presentation.base.BaseViewModel;
 import java.util.List;
 import java.util.concurrent.Executor;
 
-import android.util.Log;
-
 /**
  * 處理收據歷史清單與管理邏輯的 ViewModel
  */
 public class HistoryViewModel extends BaseViewModel {
-
-    private static final String TAG = "HistoryViewModel";
 
     public enum ViewMode { RECEIPTS, ALL_ITEMS }
 
@@ -84,7 +80,6 @@ public class HistoryViewModel extends BaseViewModel {
                     allItems.postValue(list);
                 }
             } catch (Exception e) {
-                Log.e(TAG, "Failed to load data", e);
                 errorMessages.postValue("Failed to load history: " + e.getMessage());
             } finally {
                 isLoading.postValue(false);
@@ -98,12 +93,9 @@ public class HistoryViewModel extends BaseViewModel {
     public void deleteReceipt(String receiptId) {
         ioExecutor.execute(() -> {
             try {
-                Log.d(TAG, "Requesting deletion of receipt: " + receiptId);
                 deleteUseCase.execute(receiptId);
-                Log.d(TAG, "Deletion confirmed, reloading data");
                 loadData();
             } catch (Exception e) {
-                Log.e(TAG, "Delete failed in ViewModel", e);
                 errorMessages.postValue("Delete failed: " + e.getMessage());
             }
         });

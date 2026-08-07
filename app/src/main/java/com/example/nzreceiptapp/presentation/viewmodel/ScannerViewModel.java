@@ -1,7 +1,5 @@
 package com.example.nzreceiptapp.presentation.viewmodel;
 
-import android.util.Log;
-
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
@@ -18,8 +16,6 @@ import java.util.concurrent.Executor;
  * 處理收據掃描流程的 ViewModel
  */
 public class ScannerViewModel extends BaseViewModel {
-
-    private static final String TAG = "ScannerViewModel";
 
     public enum State { IDLE, EXTRACTING_TEXT, PARSING_RECEIPT, SAVING_RECEIPT, SUCCESS, ERROR }
 
@@ -63,8 +59,6 @@ public class ScannerViewModel extends BaseViewModel {
     }
 
     private void parseAndSave(String rawText, String chainName, String branchName) {
-        Log.d(TAG, "Raw OCR Text: \n" + rawText);
-        
         ioExecutor.execute(() -> {
             state.postValue(State.PARSING_RECEIPT);
             try {
@@ -79,7 +73,6 @@ public class ScannerViewModel extends BaseViewModel {
                 state.postValue(State.SUCCESS);
                 isLoading.postValue(false);
             } catch (Exception e) {
-                Log.e(TAG, "Error during parsing/saving", e);
                 handleError("Parsing/Saving failed: " + e.getMessage());
             }
         });
