@@ -12,6 +12,6 @@
     <string-array name="supermarket_choices">
         <item>Auto detect</item>
         <item>Woolworths</item>
-        <item>PAK'nSAVE</item>
+        <item>PAK\'nSAVE</item>
     </string-array>
 </resources>
