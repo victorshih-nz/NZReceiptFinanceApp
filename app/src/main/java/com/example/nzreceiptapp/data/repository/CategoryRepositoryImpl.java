@@ -6,9 +6,9 @@ import com.example.nzreceiptapp.data.local.entity.CategoryRuleEntity;
 import com.example.nzreceiptapp.domain.model.Category;
 import com.example.nzreceiptapp.domain.repository.ICategoryRepository;
 
-import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -21,31 +21,11 @@ public class CategoryRepositoryImpl implements ICategoryRepository {
 
     @Override
     public Map<String, Category> getAllClassificationRules() {
-        List<CategoryEntity> entities = categoryDao.getAllCategories();
+        Map<String, Category> categoriesById = mapCategories(categoryDao.getAllCategories());
         List<CategoryRuleEntity> rules = categoryDao.getAllRules();
-
-        // 建立 ID 到 Domain Model 的 Mapping
-        Map<String, Category> idMap = new HashMap<>();
-        
-        // 1. 先處理大類 (Parent is null)
-        for (CategoryEntity entity : entities) {
-            if (entity.parentId == null) {
-                idMap.put(entity.id, new Category(entity.id, entity.name, null));
-            }
-        }
-        
-        // 2. 處理子類
-        for (CategoryEntity entity : entities) {
-            if (entity.parentId != null) {
-                Category parent = idMap.get(entity.parentId);
-                idMap.put(entity.id, new Category(entity.id, entity.name, parent));
-            }
-        }
-
-        // 3. 組裝規則
         Map<String, Category> result = new HashMap<>();
         for (CategoryRuleEntity rule : rules) {
-            result.put(rule.keyword, idMap.get(rule.categoryId));
+            result.put(rule.keyword, categoriesById.get(rule.categoryId));
         }
         return result;
     }

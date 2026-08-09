@@ -2,6 +2,7 @@ package com.example.nzreceiptapp.data.local;
 
 import android.content.Context;
 
+import com.example.nzreceiptapp.domain.model.Category;
 import com.example.nzreceiptapp.domain.repository.ICategoryRepository;
 import com.example.nzreceiptapp.domain.service.ICategoryInitializer;
 
@@ -9,6 +10,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.UUID;
 
 /** Loads the bundled category TSV once, before the first receipt is parsed. */
 public final class BundledCategoryInitializer implements ICategoryInitializer {
@@ -31,8 +33,42 @@ public final class BundledCategoryInitializer implements ICategoryInitializer {
         // The seeder is idempotent: existing categories are reused and keyword
         // rules are replaced. Running it once per app process also picks up new
         // rules added in a later app version.
-        CategorySeeder.seedFromText(readAsset(), repository);
+        seedFromText(readAsset(), repository);
         initialized = true;
+    }
+
+    private static void seedFromText(String content, ICategoryRepository repository) {
+        String[] lines = content.split("\\n");
+        for (String line : lines) {
+            String trimmedLine = line.trim();
+            if (trimmedLine.isEmpty() || trimmedLine.startsWith("#")) {
+                continue;
+            }
+
+            String[] parts = trimmedLine.split("\\t");
+            if (parts.length < 3) {
+                continue;
+            }
+
+            String keyword = parts[0].trim().toLowerCase();
+            String parentName = parts[1].trim();
+            String subCategoryName = parts[2].trim();
+
+            Category parent = repository.findCategoryByName(parentName, null);
+            if (parent == null) {
+                parent = new Category(UUID.randomUUID().toString(), parentName, null);
+                repository.saveCategory(parent);
+            }
+
+            Category subCategory = repository.findCategoryByName(subCategoryName, parentName);
+            if (subCategory == null) {
+                subCategory = new Category(
+                        UUID.randomUUID().toString(), subCategoryName, parent);
+                repository.saveCategory(subCategory);
+            }
+
+            repository.saveRule(keyword, subCategory.getId());
+        }
     }
 
     private String readAsset() {
