@@ -34,7 +34,7 @@ public class ParserProvider implements IParserFactory {
     public String detectChain(String rawText) {
         if (rawText == null) return null;
         String normalized = rawText.toLowerCase().replace("'", "").replace(" ", "");
-        if (normalized.contains("woolworths")) {
+        if (normalized.contains("woolworths") || normalized.contains("countdown")) {
             return "Woolworths";
         }
         if (normalized.contains("paknsave")) {
