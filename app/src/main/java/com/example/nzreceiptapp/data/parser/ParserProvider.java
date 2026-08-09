@@ -1,6 +1,5 @@
 package com.example.nzreceiptapp.data.parser;
 
-import com.example.nzreceiptapp.domain.logic.CategoryClassifier;
 import com.example.nzreceiptapp.domain.parser.IParserFactory;
 import com.example.nzreceiptapp.domain.parser.IReceiptParser;
 
@@ -9,11 +8,8 @@ import com.example.nzreceiptapp.domain.parser.IReceiptParser;
  */
 public class ParserProvider implements IParserFactory {
 
-    private final CategoryClassifier classifier;
-
-    public ParserProvider(CategoryClassifier classifier) {
-        this.classifier = classifier;
-    }
+    private final IReceiptParser woolworthsParser = new WoolworthsParser();
+    private final IReceiptParser pakNSaveParser = new PakNSaveParser();
 
     /**
      * 根據連鎖店名稱獲取解析器
@@ -25,12 +21,12 @@ public class ParserProvider implements IParserFactory {
         String normalized = chainName.toLowerCase().replace(" ", "").replace("'", "");
         
         if (normalized.contains("woolworths") || normalized.contains("countdown")) {
-            return new WoolworthsParser(classifier);
+            return woolworthsParser;
         } else if (normalized.contains("paknsave")) {
-            return new PakNSaveParser(classifier);
+            return pakNSaveParser;
         }
         
-        // 預設返回 null 或一個基礎解析器
+        // The use case turns an unsupported chain into a user-facing error.
         return null;
     }
 

@@ -52,7 +52,7 @@ public class OcrTextLayoutBuilderTest {
         );
 
         String rebuiltText = builder.build(fragments);
-        List<ReceiptItem> items = new WoolworthsParser().parseRawText(rebuiltText);
+        List<ReceiptItem> items = new WoolworthsParser().parse(rebuiltText).getItems();
 
         assertEquals(2, items.size());
         assertEquals("Carrot", items.get(0).getName());

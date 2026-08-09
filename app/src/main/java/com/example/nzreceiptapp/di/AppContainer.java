@@ -56,12 +56,13 @@ public final class AppContainer {
                 new ReceiptRepositoryImpl(database.receiptDao(), imageStore);
 
         CategoryClassifier classifier = new CategoryClassifier(categoryRepository);
-        ParserProvider parserProvider = new ParserProvider(classifier);
+        ParserProvider parserProvider = new ParserProvider();
         BundledCategoryInitializer categoryInitializer =
                 new BundledCategoryInitializer(applicationContext, categoryRepository);
 
         ocrService = new MLKitOCRService(applicationContext);
-        parseReceiptUseCase = new ParseReceiptUseCase(parserProvider, categoryInitializer);
+        parseReceiptUseCase = new ParseReceiptUseCase(
+                parserProvider, categoryInitializer, classifier);
         saveReceiptUseCase = new SaveReceiptUseCase(receiptRepository);
         getReceiptsPagedUseCase = new GetReceiptsPagedUseCase(receiptRepository);
         getAllItemsPagedUseCase = new GetAllItemsPagedUseCase(receiptRepository);

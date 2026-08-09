@@ -53,6 +53,21 @@ public class ReceiptItem {
         return "KG".equalsIgnoreCase(unit) || "g".equalsIgnoreCase(unit);
     }
 
+    /** Returns the same parsed item with its category classification applied. */
+    public ReceiptItem withCategory(Category classifiedCategory) {
+        return new ReceiptItem(
+                id,
+                rawName,
+                cleanedName,
+                quantity,
+                unit,
+                unitPriceCents,
+                discounts,
+                classifiedCategory,
+                specialMk
+        );
+    }
+
     // --- Getters ---
     public String getId() { return id; }
     public String getRawName() { return rawName; }

@@ -1,13 +1,17 @@
 package com.example.nzreceiptapp.domain.usecase;
 
+import com.example.nzreceiptapp.domain.logic.CategoryClassifier;
 import com.example.nzreceiptapp.domain.model.Receipt;
 import com.example.nzreceiptapp.domain.model.ParsedReceipt;
+import com.example.nzreceiptapp.domain.model.ReceiptItem;
 import com.example.nzreceiptapp.domain.model.Store;
 import com.example.nzreceiptapp.domain.parser.IParserFactory;
 import com.example.nzreceiptapp.domain.parser.IReceiptParser;
 import com.example.nzreceiptapp.domain.service.ICategoryInitializer;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -17,15 +21,14 @@ public class ParseReceiptUseCase {
 
     private final IParserFactory parserFactory;
     private final ICategoryInitializer categoryInitializer;
-
-    public ParseReceiptUseCase(IParserFactory parserFactory) {
-        this(parserFactory, () -> { });
-    }
+    private final CategoryClassifier categoryClassifier;
 
     public ParseReceiptUseCase(IParserFactory parserFactory,
-                               ICategoryInitializer categoryInitializer) {
+                               ICategoryInitializer categoryInitializer,
+                               CategoryClassifier categoryClassifier) {
         this.parserFactory = parserFactory;
         this.categoryInitializer = categoryInitializer;
+        this.categoryClassifier = categoryClassifier;
     }
 
     public Receipt execute(String rawText, String chainName, String branchName, LocalDateTime purchaseDate) {
@@ -51,8 +54,9 @@ public class ParseReceiptUseCase {
             throw new IllegalArgumentException("Unsupported supermarket chain: " + resolvedChain);
         }
 
-        ParsedReceipt parsed = parser.parseReceipt(rawText);
-        if (parsed.getItems().isEmpty()) {
+        ParsedReceipt parsed = parser.parse(rawText);
+        List<ReceiptItem> classifiedItems = classifyItems(parsed.getItems());
+        if (classifiedItems.isEmpty()) {
             throw new IllegalArgumentException("No receipt items could be recognised");
         }
         
@@ -64,7 +68,7 @@ public class ParseReceiptUseCase {
         return new Receipt(
                 UUID.randomUUID().toString(),
                 store,
-                parsed.getItems(),
+                classifiedItems,
                 purchaseDate != null ? purchaseDate : LocalDateTime.now(),
                 0, // 初始折扣設為 0，可由使用者後續調整
                 false,
@@ -72,5 +76,14 @@ public class ParseReceiptUseCase {
                 imageUri,
                 parsed.getPrintedTotalCents()
         );
+    }
+
+    private List<ReceiptItem> classifyItems(List<ReceiptItem> parsedItems) {
+        List<ReceiptItem> result = new ArrayList<>();
+        for (ReceiptItem item : parsedItems) {
+            result.add(item.withCategory(
+                    categoryClassifier.classify(item.getCleanedName())));
+        }
+        return result;
     }
 }

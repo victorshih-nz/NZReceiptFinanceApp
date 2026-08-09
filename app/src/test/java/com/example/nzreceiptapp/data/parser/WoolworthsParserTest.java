@@ -1,18 +1,14 @@
 package com.example.nzreceiptapp.data.parser;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
-import com.example.nzreceiptapp.domain.logic.CategoryClassifier;
-import com.example.nzreceiptapp.domain.model.Category;
+import com.example.nzreceiptapp.domain.model.ParsedReceipt;
 import com.example.nzreceiptapp.domain.model.ReceiptItem;
-import com.example.nzreceiptapp.domain.repository.ICategoryRepository;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -37,10 +33,12 @@ public class WoolworthsParserTest {
                 "TOTAL                        10.64\n" +
                 "EFTPOS                       10.64\n";
 
-        List<ReceiptItem> items = parser.parseRawText(mockOcrText);
+        ParsedReceipt parsed = parser.parse(mockOcrText);
+        List<ReceiptItem> items = parsed.getItems();
 
         assertNotNull(items);
         assertEquals(3, items.size());
+        assertEquals(Long.valueOf(1064), parsed.getPrintedTotalCents());
 
         // 1. 驗證牛奶 (標準單件)
         ReceiptItem milk = items.get(0);
@@ -49,6 +47,7 @@ public class WoolworthsParserTest {
         assertEquals("ea", milk.getUnit());
         assertEquals(389, milk.getUnitPriceCents());
         assertEquals(389, milk.getOriginalSubtotalCents());
+        assertNull("Format parsers must not assign categories", milk.getCategory());
 
         // 2. 驗證起司 (免稅標記 N)
         ReceiptItem brie = items.get(1);
@@ -73,10 +72,12 @@ public class WoolworthsParserTest {
                 "TOTAL DUE                   12.00\n" +
                 "CASH                         20.00\n";
 
-        List<ReceiptItem> items = parser.parseRawText(mockOcrText);
+        ParsedReceipt parsed = parser.parse(mockOcrText);
+        List<ReceiptItem> items = parsed.getItems();
 
         assertNotNull(items);
         assertEquals(2, items.size());
+        assertEquals(Long.valueOf(1200), parsed.getPrintedTotalCents());
 
         // 1. 驗證多件折落的洋芋片
         ReceiptItem chips = items.get(0);
@@ -132,10 +133,12 @@ public class WoolworthsParserTest {
                 "A/C  A0000000031010        PURCHASE       NZ$95.00\n" +
                 "TVR  000000000000";
 
-        List<ReceiptItem> items = parser.parseRawText(mockOcrText);
+        ParsedReceipt parsed = parser.parse(mockOcrText);
+        List<ReceiptItem> items = parsed.getItems();
 
         assertNotNull(items);
         assertEquals(20, items.size());
+        assertEquals(Long.valueOf(9500), parsed.getPrintedTotalCents());
 
         // 1. Carrot (Weighted)
         ReceiptItem carrot = items.get(0);
@@ -177,65 +180,11 @@ public class WoolworthsParserTest {
     }
 
     @Test
-    public void testParseWithCategoryClassification() {
-        // 1. 設置 Mock 分類規則
-        MockCategoryRepository mockRepo = new MockCategoryRepository();
-        Category dairy = new Category(UUID.randomUUID().toString(), "Dairy", null);
-        Category produce = new Category(UUID.randomUUID().toString(), "Produce", null);
-        
-        mockRepo.addRule("MILK", dairy);
-        mockRepo.addRule("BANANAS", produce);
-        mockRepo.addRule("Carrot", produce);
-
-        CategoryClassifier classifier = new CategoryClassifier(mockRepo);
-        WoolworthsParser classifierParser = new WoolworthsParser(classifier);
-
-        // 2. 模擬收據文字
-        String mockOcrText = "WW MILK 2L        3.80 G\n" +
-                            "BANANAS LOOSE     2.20 G\n" +
-                            "Carrot            1.00 G\n";
-
-        List<ReceiptItem> items = classifierParser.parseRawText(mockOcrText);
-
-        assertEquals(3, items.size());
-
-        // 3. 驗證分類是否正確綁定
-        assertNotNull("Item 0 category should not be null", items.get(0).getCategory());
-        assertEquals("Dairy", items.get(0).getCategory().getName());
-        
-        assertNotNull("Item 1 category should not be null", items.get(1).getCategory());
-        assertEquals("Produce", items.get(1).getCategory().getName());
-        
-        assertNotNull("Item 2 category should not be null", items.get(2).getCategory());
-        assertEquals("Produce", items.get(2).getCategory().getName());
-    }
-
-    @Test
     public void testParseEmptyOrGarbageText() {
         String garbageText = "WELCOME TO WOOLWORTHS\n\nDUPLICATE RECEIPT\nTHANK YOU FOR SHOPPING\n";
-        List<ReceiptItem> items = parser.parseRawText(garbageText);
+        List<ReceiptItem> items = parser.parse(garbageText).getItems();
 
         assertNotNull(items);
         assertTrue(items.isEmpty());
-    }
-
-    private static class MockCategoryRepository implements ICategoryRepository {
-        private final Map<String, Category> rules = new HashMap<>();
-
-        public void addRule(String keyword, Category category) {
-            rules.put(keyword, category);
-        }
-
-        @Override
-        public Map<String, Category> getAllClassificationRules() {
-            return rules;
-        }
-
-        @Override
-        public Category findCategoryByName(String name, String parentName) { return null; }
-        @Override
-        public void saveCategory(Category category) {}
-        @Override
-        public void saveRule(String keyword, String categoryId) {}
     }
 }

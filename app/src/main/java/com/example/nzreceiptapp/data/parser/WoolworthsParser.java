@@ -1,8 +1,5 @@
 package com.example.nzreceiptapp.data.parser;
 
-import com.example.nzreceiptapp.domain.logic.CategoryClassifier;
-import com.example.nzreceiptapp.domain.model.Category;
-import com.example.nzreceiptapp.domain.model.ItemDiscount;
 import com.example.nzreceiptapp.domain.model.ParsedReceipt;
 import com.example.nzreceiptapp.domain.model.ReceiptItem;
 import com.example.nzreceiptapp.domain.parser.IReceiptParser;
@@ -17,16 +14,6 @@ import java.util.regex.Pattern;
  * 專門解析紐西蘭 Woolworths 收據文字的解析器 (Data Layer)
  */
 public class WoolworthsParser implements IReceiptParser {
-
-    private final CategoryClassifier classifier;
-
-    public WoolworthsParser() {
-        this.classifier = null;
-    }
-
-    public WoolworthsParser(CategoryClassifier classifier) {
-        this.classifier = classifier;
-    }
 
     // 第一層：擷取品名與總價，捕捉前綴 ^, *, #，忽略稅務代碼 G, N, *
     private static final Pattern ITEM_PATTERN = Pattern.compile("^([\\^\\*#]?)\\s*(.+?)\\s+(\\d+\\.\\d+)\\s*(?:[GN*])?\\s*$");
@@ -43,8 +30,7 @@ public class WoolworthsParser implements IReceiptParser {
     private static final Pattern PRINTED_TOTAL_PATTERN = Pattern.compile(
             "(?im)^\\s*TOTAL(?:\\s+DUE)?\\s+\\$?\\s*(\\d+\\.\\d{2})\\s*$");
 
-    @Override
-    public List<ReceiptItem> parseRawText(String rawText) {
+    private List<ReceiptItem> parseItems(String rawText) {
         List<ReceiptItem> items = new ArrayList<>();
         if (rawText == null || rawText.trim().isEmpty()) {
             return items;
@@ -149,7 +135,7 @@ public class WoolworthsParser implements IReceiptParser {
                     unit,
                     unitPriceCents,
                     Collections.emptyList(),
-                    classifier != null ? classifier.classify(name) : null,
+                    null,
                     isSpecial
                 );
 
@@ -169,8 +155,8 @@ public class WoolworthsParser implements IReceiptParser {
     }
 
     @Override
-    public ParsedReceipt parseReceipt(String rawText) {
-        List<ReceiptItem> items = parseRawText(rawText);
+    public ParsedReceipt parse(String rawText) {
+        List<ReceiptItem> items = parseItems(rawText);
         Matcher matcher = PRINTED_TOTAL_PATTERN.matcher(rawText == null ? "" : rawText);
         Long total = matcher.find()
                 ? Math.round(Double.parseDouble(matcher.group(1)) * 100)

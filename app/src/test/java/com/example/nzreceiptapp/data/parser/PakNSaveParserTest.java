@@ -29,7 +29,8 @@ public class PakNSaveParserTest {
                 "THANK YOU FOR SHOPPING WITH US";
 
         PakNSaveParser parser = new PakNSaveParser();
-        List<ReceiptItem> items = parser.parseRawText(mockOcrText);
+        ParsedReceipt parsedReceipt = parser.parse(mockOcrText);
+        List<ReceiptItem> items = parsedReceipt.getItems();
 
         assertNotNull(items);
         assertEquals(4, items.size());
@@ -58,7 +59,6 @@ public class PakNSaveParserTest {
         assertEquals("PAMS FLOUR 1KG", item4.getRawName());
         assertEquals(260L, item4.getUnitPriceCents());
 
-        ParsedReceipt parsedReceipt = parser.parseReceipt(mockOcrText);
         assertEquals(Long.valueOf(1424L), parsedReceipt.getPrintedTotalCents());
     }
 }

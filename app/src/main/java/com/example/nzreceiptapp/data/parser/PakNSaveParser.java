@@ -1,6 +1,5 @@
 package com.example.nzreceiptapp.data.parser;
 
-import com.example.nzreceiptapp.domain.logic.CategoryClassifier;
 import com.example.nzreceiptapp.domain.model.ParsedReceipt;
 import com.example.nzreceiptapp.domain.model.ReceiptItem;
 import com.example.nzreceiptapp.domain.parser.IReceiptParser;
@@ -18,18 +17,8 @@ public class PakNSaveParser implements IReceiptParser {
 
     private static final Pattern PRINTED_TOTAL_PATTERN = Pattern.compile(
             "(?im)^\\s*TOTAL(?:\\s+DUE)?\\s+\\$?\\s*(\\d+\\.\\d{2})\\s*$");
-    private final CategoryClassifier classifier;
 
-    public PakNSaveParser() {
-        this(null);
-    }
-
-    public PakNSaveParser(CategoryClassifier classifier) {
-        this.classifier = classifier;
-    }
-
-    @Override
-    public List<ReceiptItem> parseRawText(String ocrText) {
+    private List<ReceiptItem> parseItems(String ocrText) {
         List<ReceiptItem> items = new ArrayList<>();
         if (ocrText == null || ocrText.trim().isEmpty()) {
             return items;
@@ -37,8 +26,6 @@ public class PakNSaveParser implements IReceiptParser {
 
         String[] lines = ocrText.split("\n");
 
-        Pattern datePattern = Pattern.compile("(\\d{2})[./](\\d{2})[./](\\d{2})");
-        Pattern totalPattern = Pattern.compile("TOTAL(?:\\s+DUE)?\\s+\\$?\\s*(\\d+\\.\\d{2})", Pattern.CASE_INSENSITIVE);
         Pattern itemPattern = Pattern.compile("^(.+?)\\s+\\$?\\s*(\\d+\\.\\d{2})$");
         Pattern excludePattern = Pattern.compile("(EFTPOS|CASH|CHANGE|ROUNDING|GST|TOTAL|SUBTOTAL)", Pattern.CASE_INSENSITIVE);
         Pattern weightInfoPattern = Pattern.compile("^([\\d.]+)\\s*([a-zA-Z]+)\\s*@\\s*\\$?\\s*([\\d.]+)");
@@ -48,14 +35,6 @@ public class PakNSaveParser implements IReceiptParser {
         for (String line : lines) {
             line = line.trim();
             if (line.isEmpty()) continue;
-
-            // ========================================================
-            // 2. 解析收據總金額 (此處僅作過濾或記錄，目前回傳 List)
-            // ========================================================
-            Matcher totalMatcher = totalPattern.matcher(line);
-            if (totalMatcher.find()) {
-                continue;
-            }
 
             // 3. 解析商品明細
             Matcher itemMatcher = itemPattern.matcher(line);
@@ -89,7 +68,7 @@ public class PakNSaveParser implements IReceiptParser {
                     items.add(new ReceiptItem(
                             itemId, matchedPart, finalName, quantity, unit, unitPriceCents,
                             Collections.emptyList(),
-                            classifier != null ? classifier.classify(finalName) : null,
+                            null,
                             false
                     ));
 
@@ -103,7 +82,7 @@ public class PakNSaveParser implements IReceiptParser {
                 items.add(new ReceiptItem(
                         itemId, matchedPart, matchedPart, 1.0, "ea", unitPriceCents,
                         Collections.emptyList(),
-                        classifier != null ? classifier.classify(matchedPart) : null,
+                        null,
                         false
                 ));
 
@@ -120,8 +99,8 @@ public class PakNSaveParser implements IReceiptParser {
     }
 
     @Override
-    public ParsedReceipt parseReceipt(String rawText) {
-        List<ReceiptItem> items = parseRawText(rawText);
+    public ParsedReceipt parse(String rawText) {
+        List<ReceiptItem> items = parseItems(rawText);
         Matcher matcher = PRINTED_TOTAL_PATTERN.matcher(rawText == null ? "" : rawText);
         Long total = matcher.find()
                 ? Math.round(Double.parseDouble(matcher.group(1)) * 100)
