@@ -1,5 +1,9 @@
 # Architecture guide
 
+For the formal system context, requirements, use cases, business rules, data
+dictionary, traceability, risks, and component catalogue, see the
+[System Analysis documentation set](system-analysis/README.md).
+
 ## Goal
 
 Keep Android details at the edge of the application so receipt parsing, expense
