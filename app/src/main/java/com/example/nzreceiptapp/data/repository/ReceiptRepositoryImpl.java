@@ -16,18 +16,25 @@ import com.example.nzreceiptapp.domain.model.ReceiptItem;
 import com.example.nzreceiptapp.domain.model.ReceiptItemSummary;
 import com.example.nzreceiptapp.domain.model.Store;
 import com.example.nzreceiptapp.domain.repository.IReceiptRepository;
+import com.example.nzreceiptapp.domain.service.IReceiptImageStore;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import android.util.Log;
-
 public class ReceiptRepositoryImpl implements IReceiptRepository {
-    private static final String TAG = "ReceiptRepository";
     private final ReceiptDao receiptDao;
+    private final IReceiptImageStore imageStore;
 
     public ReceiptRepositoryImpl(ReceiptDao receiptDao) {
+        this(receiptDao, new IReceiptImageStore() {
+            @Override public String persist(String sourceUri) { return sourceUri; }
+            @Override public void delete(String storedUri) { }
+        });
+    }
+
+    public ReceiptRepositoryImpl(ReceiptDao receiptDao, IReceiptImageStore imageStore) {
         this.receiptDao = receiptDao;
+        this.imageStore = imageStore;
     }
 
     @Override
@@ -42,7 +49,10 @@ public class ReceiptRepositoryImpl implements IReceiptRepository {
                 store.getId(),
                 receipt.getPurchaseDate(),
                 receipt.getTotalDiscountCents(),
-                receipt.isSynced()
+                receipt.isSynced(),
+                receipt.getRawOcrText(),
+                receipt.getImageUri(),
+                receipt.getPrintedTotalCents()
         );
 
         // 3. Map Items and Discounts
@@ -113,14 +123,9 @@ public class ReceiptRepositoryImpl implements IReceiptRepository {
 
     @Override
     public void deleteReceipt(String id) {
-        Log.d(TAG, "Deleting receipt with ID: " + id);
-        try {
-            receiptDao.deleteById(id);
-            Log.d(TAG, "Deletion successful");
-        } catch (Exception e) {
-            Log.e(TAG, "Deletion failed for ID: " + id, e);
-            throw e;
-        }
+        ReceiptWithItems existing = receiptDao.getReceiptById(id);
+        receiptDao.deleteReceiptAndUnusedStore(id);
+        if (existing != null) imageStore.delete(existing.receipt.imageUri);
     }
 
     private ReceiptItem mapItemToDomain(ReceiptItemEntity itemEntity, List<ItemDiscountEntity> discountEntities, CategoryEntity categoryEntity) {
@@ -172,7 +177,10 @@ public class ReceiptRepositoryImpl implements IReceiptRepository {
                 items,
                 entity.receipt.purchaseDate,
                 entity.receipt.totalDiscountCents,
-                entity.receipt.isSynced
+                entity.receipt.isSynced,
+                entity.receipt.rawOcrText,
+                entity.receipt.imageUri,
+                entity.receipt.printedTotalCents
         );
     }
 }

@@ -9,7 +9,17 @@
         android:id="@+id/navigation_scanner"
         android:name="com.example.nzreceiptapp.presentation.view.ScannerFragment"
         android:label="@string/title_scanner"
-        tools:layout="@layout/fragment_scanner" />
+        tools:layout="@layout/fragment_scanner">
+        <action
+            android:id="@+id/action_scanner_to_receiptReview"
+            app:destination="@id/receiptReviewFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/receiptReviewFragment"
+        android:name="com.example.nzreceiptapp.presentation.view.ReceiptReviewFragment"
+        android:label="Review receipt"
+        tools:layout="@layout/fragment_receipt_review" />
 
     <fragment
         android:id="@+id/navigation_history"

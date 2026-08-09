@@ -8,7 +8,8 @@ import androidx.arch.core.executor.testing.InstantTaskExecutorRule;
 
 import com.example.nzreceiptapp.domain.model.Receipt;
 import com.example.nzreceiptapp.domain.usecase.DeleteReceiptUseCase;
-import com.example.nzreceiptapp.domain.usecase.GetReceiptsUseCase;
+import com.example.nzreceiptapp.domain.usecase.GetAllItemsPagedUseCase;
+import com.example.nzreceiptapp.domain.usecase.GetReceiptsPagedUseCase;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -24,45 +25,41 @@ public class HistoryViewModelTest {
     @Rule
     public InstantTaskExecutorRule instantTaskExecutorRule = new InstantTaskExecutorRule();
 
-    @Mock
-    private GetReceiptsUseCase getReceiptsUseCase;
-    @Mock
-    private DeleteReceiptUseCase deleteUseCase;
+    @Mock private GetReceiptsPagedUseCase getReceiptsPagedUseCase;
+    @Mock private GetAllItemsPagedUseCase getAllItemsPagedUseCase;
+    @Mock private DeleteReceiptUseCase deleteUseCase;
 
     private HistoryViewModel viewModel;
 
     @Before
     public void setUp() {
         MockitoAnnotations.openMocks(this);
-        viewModel = new HistoryViewModel(getReceiptsUseCase, deleteUseCase);
+        viewModel = new HistoryViewModel(
+                getReceiptsPagedUseCase,
+                getAllItemsPagedUseCase,
+                deleteUseCase,
+                Runnable::run
+        );
     }
 
     @Test
-    public void testLoadReceipts() throws InterruptedException {
-        // Mock
-        List<Receipt> mockList = Collections.singletonList(new Receipt("id", null, null, null, 0, false));
-        when(getReceiptsUseCase.execute()).thenReturn(mockList);
+    public void loadData_loadsFirstReceiptPage() {
+        List<Receipt> expected = Collections.singletonList(
+                new Receipt("id", null, null, null, 0, false)
+        );
+        when(getReceiptsPagedUseCase.execute(0, 10)).thenReturn(expected);
 
-        // Execute
-        viewModel.loadReceipts();
+        viewModel.loadData();
 
-        // Wait a bit for the thread
-        Thread.sleep(100);
-
-        // Verify
-        assertEquals(mockList, viewModel.getReceipts().getValue());
+        assertEquals(expected, viewModel.getReceipts().getValue());
+        verify(getReceiptsPagedUseCase).execute(0, 10);
     }
 
     @Test
-    public void testDeleteReceipt() throws InterruptedException {
-        // Execute
+    public void deleteReceipt_deletesThenReloadsCurrentPage() {
         viewModel.deleteReceipt("test-id");
 
-        // Wait a bit
-        Thread.sleep(100);
-
-        // Verify
         verify(deleteUseCase).execute("test-id");
-        verify(getReceiptsUseCase).execute(); // Should reload
+        verify(getReceiptsPagedUseCase).execute(0, 10);
     }
 }

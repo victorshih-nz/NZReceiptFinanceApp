@@ -4,19 +4,20 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
-import com.example.nzreceiptapp.data.local.AppDatabase;
-import com.example.nzreceiptapp.data.local.dao.ReceiptDao;
-import com.example.nzreceiptapp.data.repository.ReceiptRepositoryImpl;
+import com.example.nzreceiptapp.NzReceiptApplication;
 import com.example.nzreceiptapp.databinding.FragmentReceiptDetailBinding;
+import com.example.nzreceiptapp.di.ViewModelFactory;
 import com.example.nzreceiptapp.domain.model.Receipt;
-import com.example.nzreceiptapp.domain.repository.IReceiptRepository;
 import com.example.nzreceiptapp.presentation.adapter.ReceiptItemAdapter;
+import com.example.nzreceiptapp.presentation.viewmodel.ReceiptDetailViewModel;
 
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
@@ -25,7 +26,16 @@ public class ReceiptDetailFragment extends Fragment {
 
     private FragmentReceiptDetailBinding binding;
     private ReceiptItemAdapter adapter;
+    private ReceiptDetailViewModel viewModel;
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.getDefault());
+
+    @Override
+    public void onCreate(@Nullable Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        NzReceiptApplication app = (NzReceiptApplication) requireActivity().getApplication();
+        ViewModelFactory factory = new ViewModelFactory(app.getAppContainer());
+        viewModel = new ViewModelProvider(this, factory).get(ReceiptDetailViewModel.class);
+    }
 
     @Nullable
     @Override
@@ -38,28 +48,23 @@ public class ReceiptDetailFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        String receiptId = getArguments() != null ? getArguments().getString("receiptId") : null;
-        if (receiptId != null) {
-            loadReceipt(receiptId);
-        }
-    }
+        adapter = new ReceiptItemAdapter();
+        binding.rvItems.setLayoutManager(new LinearLayoutManager(requireContext()));
+        binding.rvItems.setAdapter(adapter);
+        binding.toolbar.setNavigationIcon(android.R.drawable.ic_menu_revert);
+        binding.toolbar.setNavigationOnClickListener(
+                ignored -> getParentFragmentManager().popBackStack()
+        );
 
-    private void loadReceipt(String id) {
-        // Since we don't have a ViewModel for details yet, let's use a simple thread for now
-        // or we could add it to ViewModelFactory.
-        new Thread(() -> {
-            ReceiptDao dao = AppDatabase.getDatabase(requireContext()).receiptDao();
-            IReceiptRepository repo = new ReceiptRepositoryImpl(dao);
-            Receipt receipt = repo.getReceiptById(id);
-
-            if (getActivity() != null) {
-                getActivity().runOnUiThread(() -> {
-                    if (receipt != null) {
-                        displayReceipt(receipt);
-                    }
-                });
+        viewModel.getReceipt().observe(getViewLifecycleOwner(), this::displayReceipt);
+        viewModel.getErrorMessages().observe(getViewLifecycleOwner(), message -> {
+            if (message != null) {
+                Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show();
             }
-        }).start();
+        });
+
+        String receiptId = getArguments() != null ? getArguments().getString("receiptId") : null;
+        viewModel.loadReceipt(receiptId);
     }
 
     private void displayReceipt(Receipt receipt) {
@@ -70,13 +75,8 @@ public class ReceiptDetailFragment extends Fragment {
         double total = receipt.getFinalPayableCents() / 100.0;
         binding.txtDetailTotal.setText(String.format(Locale.getDefault(), "$%.2f", total));
 
-        adapter = new ReceiptItemAdapter();
-        binding.rvItems.setLayoutManager(new LinearLayoutManager(getContext()));
-        binding.rvItems.setAdapter(adapter);
         adapter.submitList(receipt.getItems());
 
-        binding.toolbar.setNavigationIcon(android.R.drawable.ic_menu_revert);
-        binding.toolbar.setNavigationOnClickListener(v -> getParentFragmentManager().popBackStack());
     }
 
     @Override

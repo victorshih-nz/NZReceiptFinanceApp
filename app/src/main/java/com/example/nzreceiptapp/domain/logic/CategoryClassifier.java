@@ -29,14 +29,14 @@ public class CategoryClassifier {
             rulesCache = repository.getAllClassificationRules();
         }
 
-        String cleanedName = cleanItemName(itemName);
+        String cleanedName = " " + normalizeForMatching(cleanItemName(itemName)) + " ";
         Category bestMatch = null;
         int longestKeywordLength = 0;
 
         // 長度優先匹配 (Longest Match Wins)
         for (Map.Entry<String, Category> entry : rulesCache.entrySet()) {
-            String keyword = entry.getKey().toLowerCase();
-            if (cleanedName.toLowerCase().contains(keyword)) {
+            String keyword = normalizeForMatching(entry.getKey());
+            if (cleanedName.contains(" " + keyword + " ")) {
                 if (keyword.length() > longestKeywordLength) {
                     longestKeywordLength = keyword.length();
                     bestMatch = entry.getValue();
@@ -55,5 +55,12 @@ public class CategoryClassifier {
         return name.replaceAll("(?i)\\d+\\s*(L|ml|g|kg|PK|EA|pack)", "")
                    .replaceAll("[\\^\\*#]", "")
                    .trim();
+    }
+
+    private String normalizeForMatching(String value) {
+        return value.toLowerCase()
+                .replaceAll("[^a-z0-9]+", " ")
+                .trim()
+                .replaceAll("\\s+", " ");
     }
 }

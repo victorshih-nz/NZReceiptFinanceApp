@@ -2,6 +2,7 @@ package com.example.nzreceiptapp.domain.logic;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 import com.example.nzreceiptapp.domain.model.Category;
 import com.example.nzreceiptapp.domain.repository.ICategoryRepository;
@@ -59,6 +60,14 @@ public class CategoryClassifierTest {
         Category result = classifier.classify("^ Coca Cola 2.25L #");
         assertNotNull(result);
         assertEquals("Snacks & Beverages", result.getName());
+    }
+
+    @Test
+    public void testClassify_DoesNotMatchInsideAnotherWord() {
+        Category eggCategory = new Category("egg", "Eggs", null);
+        mockRepository.addRule("egg", eggCategory);
+
+        assertNull(classifier.classify("Veggie burger"));
     }
 
     // 簡易 Mock 實作

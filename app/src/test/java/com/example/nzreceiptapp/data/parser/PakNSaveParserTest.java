@@ -4,6 +4,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 import com.example.nzreceiptapp.domain.model.ReceiptItem;
+import com.example.nzreceiptapp.domain.model.ParsedReceipt;
 
 import org.junit.Test;
 
@@ -28,7 +29,8 @@ public class PakNSaveParserTest {
                 "THANK YOU FOR SHOPPING WITH US";
 
         PakNSaveParser parser = new PakNSaveParser();
-        List<ReceiptItem> items = parser.parseRawText(mockOcrText);
+        ParsedReceipt parsedReceipt = parser.parse(mockOcrText);
+        List<ReceiptItem> items = parsedReceipt.getItems();
 
         assertNotNull(items);
         assertEquals(4, items.size());
@@ -56,5 +58,7 @@ public class PakNSaveParserTest {
         ReceiptItem item4 = items.get(3);
         assertEquals("PAMS FLOUR 1KG", item4.getRawName());
         assertEquals(260L, item4.getUnitPriceCents());
+
+        assertEquals(Long.valueOf(1424L), parsedReceipt.getPrintedTotalCents());
     }
 }

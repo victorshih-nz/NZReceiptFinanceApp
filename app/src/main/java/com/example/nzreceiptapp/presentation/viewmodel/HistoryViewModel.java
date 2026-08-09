@@ -8,25 +8,22 @@ import com.example.nzreceiptapp.domain.model.ReceiptItemSummary;
 import com.example.nzreceiptapp.domain.usecase.DeleteReceiptUseCase;
 import com.example.nzreceiptapp.domain.usecase.GetAllItemsPagedUseCase;
 import com.example.nzreceiptapp.domain.usecase.GetReceiptsPagedUseCase;
-import com.example.nzreceiptapp.domain.usecase.GetReceiptsUseCase;
 import com.example.nzreceiptapp.presentation.base.BaseViewModel;
 
 import java.util.List;
-
-import android.util.Log;
+import java.util.concurrent.Executor;
 
 /**
  * 處理收據歷史清單與管理邏輯的 ViewModel
  */
 public class HistoryViewModel extends BaseViewModel {
 
-    private static final String TAG = "HistoryViewModel";
-
     public enum ViewMode { RECEIPTS, ALL_ITEMS }
 
     private final GetReceiptsPagedUseCase getReceiptsPagedUseCase;
     private final GetAllItemsPagedUseCase getAllItemsPagedUseCase;
     private final DeleteReceiptUseCase deleteUseCase;
+    private final Executor ioExecutor;
 
     private final MutableLiveData<List<Receipt>> receipts = new MutableLiveData<>();
     private final MutableLiveData<List<ReceiptItemSummary>> allItems = new MutableLiveData<>();
@@ -35,10 +32,12 @@ public class HistoryViewModel extends BaseViewModel {
 
     public HistoryViewModel(GetReceiptsPagedUseCase getReceiptsPagedUseCase, 
                             GetAllItemsPagedUseCase getAllItemsPagedUseCase, 
-                            DeleteReceiptUseCase deleteUseCase) {
+                            DeleteReceiptUseCase deleteUseCase,
+                            Executor ioExecutor) {
         this.getReceiptsPagedUseCase = getReceiptsPagedUseCase;
         this.getAllItemsPagedUseCase = getAllItemsPagedUseCase;
         this.deleteUseCase = deleteUseCase;
+        this.ioExecutor = ioExecutor;
     }
 
     public LiveData<List<Receipt>> getReceipts() { return receipts; }
@@ -53,23 +52,25 @@ public class HistoryViewModel extends BaseViewModel {
     }
 
     public void nextPage() {
-        currentPage.setValue(currentPage.getValue() + 1);
+        int page = currentPage.getValue() != null ? currentPage.getValue() : 0;
+        currentPage.setValue(page + 1);
         loadData();
     }
 
     public void prevPage() {
-        if (currentPage.getValue() > 0) {
-            currentPage.setValue(currentPage.getValue() - 1);
+        int page = currentPage.getValue() != null ? currentPage.getValue() : 0;
+        if (page > 0) {
+            currentPage.setValue(page - 1);
             loadData();
         }
     }
 
     public void loadData() {
         isLoading.setValue(true);
-        int page = currentPage.getValue();
+        int page = currentPage.getValue() != null ? currentPage.getValue() : 0;
         ViewMode mode = viewMode.getValue();
 
-        new Thread(() -> {
+        ioExecutor.execute(() -> {
             try {
                 if (mode == ViewMode.RECEIPTS) {
                     List<Receipt> list = getReceiptsPagedUseCase.execute(page, 10);
@@ -79,28 +80,24 @@ public class HistoryViewModel extends BaseViewModel {
                     allItems.postValue(list);
                 }
             } catch (Exception e) {
-                Log.e(TAG, "Failed to load data", e);
                 errorMessages.postValue("Failed to load history: " + e.getMessage());
             } finally {
                 isLoading.postValue(false);
             }
-        }).start();
+        });
     }
 
     /**
      * 刪除指定收據
      */
     public void deleteReceipt(String receiptId) {
-        new Thread(() -> {
+        ioExecutor.execute(() -> {
             try {
-                Log.d(TAG, "Requesting deletion of receipt: " + receiptId);
                 deleteUseCase.execute(receiptId);
-                Log.d(TAG, "Deletion confirmed, reloading data");
                 loadData();
             } catch (Exception e) {
-                Log.e(TAG, "Delete failed in ViewModel", e);
                 errorMessages.postValue("Delete failed: " + e.getMessage());
             }
-        }).start();
+        });
     }
 }

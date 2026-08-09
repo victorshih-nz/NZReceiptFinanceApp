@@ -22,10 +22,14 @@ import androidx.camera.lifecycle.ProcessCameraProvider;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.navigation.Navigation;
 
+import com.example.nzreceiptapp.R;
+import com.example.nzreceiptapp.NzReceiptApplication;
 import com.example.nzreceiptapp.databinding.FragmentScannerBinding;
-import com.example.nzreceiptapp.presentation.base.ViewModelFactory;
+import com.example.nzreceiptapp.di.ViewModelFactory;
 import com.example.nzreceiptapp.presentation.viewmodel.ScannerViewModel;
+import com.example.nzreceiptapp.presentation.viewmodel.ScannerUiState;
 import com.google.common.util.concurrent.ListenableFuture;
 
 import java.io.File;
@@ -34,8 +38,6 @@ import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.Locale;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 public class ScannerFragment extends Fragment {
 
@@ -45,7 +47,7 @@ public class ScannerFragment extends Fragment {
     private FragmentScannerBinding binding;
     private ScannerViewModel viewModel;
     private ImageCapture imageCapture;
-    private ExecutorService cameraExecutor;
+    private String lastShownError;
 
     private final ActivityResultLauncher<String> requestPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
@@ -66,8 +68,10 @@ public class ScannerFragment extends Fragment {
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        ViewModelFactory factory = new ViewModelFactory(requireContext());
-        viewModel = new ViewModelProvider(this, factory).get(ScannerViewModel.class);
+        NzReceiptApplication app = (NzReceiptApplication) requireActivity().getApplication();
+        ViewModelFactory factory = new ViewModelFactory(app.getAppContainer());
+        viewModel = new ViewModelProvider(requireActivity(), factory)
+                .get(ScannerViewModel.class);
     }
 
     @Nullable
@@ -81,8 +85,6 @@ public class ScannerFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        cameraExecutor = Executors.newSingleThreadExecutor();
-
         if (allPermissionsGranted()) {
             startCamera();
         } else {
@@ -92,27 +94,29 @@ public class ScannerFragment extends Fragment {
         binding.btnCapture.setOnClickListener(v -> takePhoto());
         binding.btnGallery.setOnClickListener(v -> galleryLauncher.launch("image/*"));
         binding.btnTestSample.setOnClickListener(v -> loadSampleFromAssets());
+        binding.btnReview.setOnClickListener(v -> Navigation.findNavController(v)
+                .navigate(R.id.action_scanner_to_receiptReview));
 
         observeViewModel();
     }
 
     private void observeViewModel() {
-        viewModel.getState().observe(getViewLifecycleOwner(), state -> {
-            binding.txtStatus.setText("Status: " + state.name());
-            if (state == ScannerViewModel.State.SUCCESS) {
-                Toast.makeText(getContext(), "Receipt saved successfully!", Toast.LENGTH_SHORT).show();
-            }
-        });
+        viewModel.getUiState().observe(getViewLifecycleOwner(), state -> {
+            if (state == null) return;
+            binding.txtStatus.setText("Status: " + state.getPhase().name());
+            boolean loading = state.isLoading();
+            boolean awaitingReview = state.canReview();
+            binding.progressBar.setVisibility(loading ? View.VISIBLE : View.GONE);
+            binding.btnCapture.setEnabled(!loading && !awaitingReview);
+            binding.btnGallery.setEnabled(!loading && !awaitingReview);
+            binding.btnTestSample.setEnabled(!loading && !awaitingReview);
+            binding.spinnerChain.setEnabled(!loading && !awaitingReview);
+            binding.editBranch.setEnabled(!loading && !awaitingReview);
+            binding.btnReview.setVisibility(awaitingReview ? View.VISIBLE : View.GONE);
 
-        viewModel.getIsLoading().observe(getViewLifecycleOwner(), isLoading -> {
-            binding.progressBar.setVisibility(isLoading ? View.VISIBLE : View.GONE);
-            binding.btnCapture.setEnabled(!isLoading);
-            binding.btnGallery.setEnabled(!isLoading);
-            binding.btnTestSample.setEnabled(!isLoading);
-        });
-
-        viewModel.getErrorMessages().observe(getViewLifecycleOwner(), error -> {
-            if (error != null) {
+            String error = state.getErrorMessage();
+            if (error != null && !error.equals(lastShownError)) {
+                lastShownError = error;
                 Toast.makeText(getContext(), error, Toast.LENGTH_LONG).show();
             }
         });
@@ -164,8 +168,9 @@ public class ScannerFragment extends Fragment {
     }
 
     private void processImage(Uri uri) {
-        // For now, we hardcode Woolworths as the default chain for testing
-        viewModel.processReceiptImage(uri.toString(), "Woolworths", "Default Branch");
+        String chainName = binding.spinnerChain.getSelectedItem().toString();
+        String branchName = binding.editBranch.getText().toString();
+        viewModel.processReceiptImage(uri.toString(), chainName, branchName);
     }
 
     private void loadSampleFromAssets() {
@@ -195,7 +200,6 @@ public class ScannerFragment extends Fragment {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        cameraExecutor.shutdown();
         binding = null;
     }
 }
