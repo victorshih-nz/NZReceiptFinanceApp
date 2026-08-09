@@ -33,8 +33,6 @@ import com.example.nzreceiptapp.presentation.viewmodel.ScannerUiState;
 import com.google.common.util.concurrent.ListenableFuture;
 
 import java.io.File;
-import java.io.FileOutputStream;
-import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.Locale;
 import java.util.concurrent.ExecutionException;
@@ -93,7 +91,6 @@ public class ScannerFragment extends Fragment {
 
         binding.btnCapture.setOnClickListener(v -> takePhoto());
         binding.btnGallery.setOnClickListener(v -> galleryLauncher.launch("image/*"));
-        binding.btnTestSample.setOnClickListener(v -> loadSampleFromAssets());
         binding.btnReview.setOnClickListener(v -> Navigation.findNavController(v)
                 .navigate(R.id.action_scanner_to_receiptReview));
 
@@ -109,7 +106,6 @@ public class ScannerFragment extends Fragment {
             binding.progressBar.setVisibility(loading ? View.VISIBLE : View.GONE);
             binding.btnCapture.setEnabled(!loading && !awaitingReview);
             binding.btnGallery.setEnabled(!loading && !awaitingReview);
-            binding.btnTestSample.setEnabled(!loading && !awaitingReview);
             binding.spinnerChain.setEnabled(!loading && !awaitingReview);
             binding.editBranch.setEnabled(!loading && !awaitingReview);
             binding.btnReview.setVisibility(awaitingReview ? View.VISIBLE : View.GONE);
@@ -171,26 +167,6 @@ public class ScannerFragment extends Fragment {
         String chainName = binding.spinnerChain.getSelectedItem().toString();
         String branchName = binding.editBranch.getText().toString();
         viewModel.processReceiptImage(uri.toString(), chainName, branchName);
-    }
-
-    private void loadSampleFromAssets() {
-        try {
-            InputStream is = requireContext().getAssets().open("sample_woolworths.jpg");
-            File file = new File(requireContext().getExternalCacheDir(), "sample_woolworths.jpg");
-            FileOutputStream fos = new FileOutputStream(file);
-            byte[] buffer = new byte[1024];
-            int read;
-            while ((read = is.read(buffer)) != -1) {
-                fos.write(buffer, 0, read);
-            }
-            fos.flush();
-            fos.close();
-            is.close();
-            processImage(Uri.fromFile(file));
-        } catch (Exception e) {
-            Log.e(TAG, "Failed to load sample from assets", e);
-            Toast.makeText(getContext(), "Failed to load sample: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-        }
     }
 
     private boolean allPermissionsGranted() {
