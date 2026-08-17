@@ -1,0 +1,1 @@
+Last requested CI validation: Batch 2-1 image cleanup best effort
