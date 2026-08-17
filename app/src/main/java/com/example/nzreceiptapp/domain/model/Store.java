@@ -17,4 +17,11 @@ public class Store {
     public String getId() { return id; }
     public String getChainName() { return chainName; }
     public String getBranchName() { return branchName; }
+    public String getNormalizedChainName(){
+        String cleanStr = chainName.replaceAll("['\"\\p{P}|\\p{S}]", "");
+        return cleanStr.trim().toLowerCase();}
+    public String getNormalizedBranchName(){
+        String cleanStr = branchName.replaceAll("['\"\\p{P}|\\p{S}]", "");
+        return cleanStr.trim().toLowerCase();
+    }
 }
