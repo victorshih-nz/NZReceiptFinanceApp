@@ -36,6 +36,7 @@ jobs:
         run: >-
           ./gradlew testDebugUnitTest
           --tests "com.example.nzreceiptapp.data.repository.ReceiptRepositoryImplTest"
+          --tests "com.example.nzreceiptapp.data.local.dao.ReceiptDaoTest"
           --tests "com.example.nzreceiptapp.data.local.entity.DatabaseEntityV3Test"
           --tests "com.example.nzreceiptapp.domain.usecase.CheckDuplicateReceiptUseCaseTest"
           --stacktrace

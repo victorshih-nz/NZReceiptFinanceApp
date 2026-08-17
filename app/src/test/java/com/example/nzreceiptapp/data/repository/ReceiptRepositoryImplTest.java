@@ -25,7 +25,6 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -54,7 +53,12 @@ public class ReceiptRepositoryImplTest {
         repository.saveReceipt(receipt);
 
         ArgumentCaptor<ReceiptEntity> captor = ArgumentCaptor.forClass(ReceiptEntity.class);
-        verify(receiptDao).saveFullReceipt(any(), captor.capture(), any(), any());
+        ArgumentCaptor<StoreEntity> storeCaptor =
+                ArgumentCaptor.forClass(StoreEntity.class);
+        verify(receiptDao).saveFullReceipt(
+                storeCaptor.capture(), captor.capture(), any(), any());
+        assertEquals("woolworths", storeCaptor.getValue().normalizedChain);
+        assertEquals("albany", storeCaptor.getValue().normalizedBranch);
         assertEquals("OCR TEXT", captor.getValue().rawOcrText);
         assertEquals("file:///receipt.jpg", captor.getValue().imageUri);
         assertEquals(Long.valueOf(399), captor.getValue().printedTotalCents);
@@ -128,10 +132,9 @@ public class ReceiptRepositoryImplTest {
         LocalDateTime hourEnd = hourStart.plusHours(1);
         ReceiptWithItems matching = storedReceipt(
                 "matching", " wool-worths! ", "Different Branch", hourStart.plusMinutes(5));
-        ReceiptWithItems otherChain = storedReceipt(
-                "other", "PAK'nSAVE", "Albany", hourStart.plusMinutes(10));
-        when(receiptDao.getReceiptsInPurchaseHour(hourStart, hourEnd))
-                .thenReturn(Arrays.asList(matching, otherChain));
+        when(receiptDao.getReceiptsInPurchaseHour(
+                "woolworths", hourStart, hourEnd))
+                .thenReturn(Collections.singletonList(matching));
 
         List<Receipt> result = repository.findDuplicateCandidates(
                 "woolworths", hourStart, hourEnd);
@@ -139,7 +142,8 @@ public class ReceiptRepositoryImplTest {
         assertEquals(1, result.size());
         assertEquals("matching", result.get(0).getId());
         assertEquals(" wool-worths! ", result.get(0).getStore().getChainName());
-        verify(receiptDao).getReceiptsInPurchaseHour(hourStart, hourEnd);
+        verify(receiptDao).getReceiptsInPurchaseHour(
+                "woolworths", hourStart, hourEnd);
     }
 
     private ReceiptWithItems storedReceipt(String receiptId,

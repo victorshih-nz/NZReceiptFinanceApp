@@ -21,7 +21,7 @@ public interface ReceiptDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     long insertStore(StoreEntity store);
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.ABORT)
     void insertReceipt(ReceiptEntity receipt);
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -63,10 +63,13 @@ public interface ReceiptDao {
     ReceiptWithItems getReceiptById(String id);
 
     @Transaction
-    @Query("SELECT * FROM receipts "
-            + "WHERE purchase_date >= :hourStart AND purchase_date < :hourEnd "
+    @Query("SELECT receipts.* FROM receipts "
+            + "INNER JOIN stores ON stores.id = receipts.store_id "
+            + "WHERE stores.normalized_chain = :normalizedChain "
+            + "AND purchase_date >= :hourStart AND purchase_date < :hourEnd "
             + "ORDER BY purchase_date ASC, saved_sequence ASC")
-    List<ReceiptWithItems> getReceiptsInPurchaseHour(LocalDateTime hourStart,
+    List<ReceiptWithItems> getReceiptsInPurchaseHour(String normalizedChain,
+                                                     LocalDateTime hourStart,
                                                      LocalDateTime hourEnd);
 
     @Transaction
@@ -103,8 +106,12 @@ public interface ReceiptDao {
     @Query("DELETE FROM receipts WHERE id = :id")
     void deleteById(String id);
 
-    @Query("SELECT * FROM stores WHERE chain_name = :chainName AND branch_name = :branchName LIMIT 1")
-    StoreEntity findStore(String chainName, String branchName);
+    @Query("SELECT * FROM stores WHERE normalized_chain = :normalizedChain "
+            + "AND normalized_branch = :normalizedBranch LIMIT 1")
+    StoreEntity findStore(String normalizedChain, String normalizedBranch);
+
+    @Query("SELECT COALESCE(MAX(saved_sequence), 0) + 1 FROM receipts")
+    long getNextSavedSequence();
 
     @Query("SELECT store_id FROM receipts WHERE id = :receiptId LIMIT 1")
     String findStoreIdForReceipt(String receiptId);
@@ -116,15 +123,18 @@ public interface ReceiptDao {
     @Transaction
     default void saveFullReceipt(StoreEntity store, ReceiptEntity receipt, 
                                 List<ReceiptItemEntity> items, List<ItemDiscountEntity> discounts) {
-        StoreEntity existingStore = findStore(store.chainName, store.branchName);
+        StoreEntity existingStore = findStore(
+                store.normalizedChain, store.normalizedBranch);
         if (existingStore == null) {
             insertStore(store);
-            existingStore = findStore(store.chainName, store.branchName);
+            existingStore = findStore(
+                    store.normalizedChain, store.normalizedBranch);
         }
         if (existingStore == null) {
             throw new IllegalStateException("Unable to create or find store");
         }
         receipt.storeId = existingStore.id;
+        receipt.savedSequence = getNextSavedSequence();
         insertReceipt(receipt);
         insertReceiptItems(items);
         if (discounts != null && !discounts.isEmpty()) {

@@ -5,14 +5,19 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.example.nzreceiptapp.data.local.entity.ReceiptEntity;
+import com.example.nzreceiptapp.data.local.entity.ReceiptItemEntity;
 import com.example.nzreceiptapp.data.local.entity.ReceiptWithItems;
+import com.example.nzreceiptapp.data.local.entity.StoreEntity;
 
 import org.junit.Before;
 import org.junit.Test;
 
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 
@@ -109,5 +114,51 @@ public class ReceiptDaoTest {
         assertEquals(2, result.getCurrentPage());
         assertEquals(31, result.getTotalRecords());
         verify(receiptDao).getAllItemsPaged(30, 30);
+    }
+
+    @Test
+    public void saveFullReceipt_reusesNormalizedStoreAndAllocatesSequence() {
+        StoreEntity incoming = new StoreEntity(
+                "new-store", " Wool-worths! ", " Green Lane! ");
+        StoreEntity existing = new StoreEntity(
+                "existing-store", "Woolworths", "Greenlane");
+        ReceiptEntity receipt = receiptEntity("receipt-1", incoming.id);
+        when(receiptDao.findStore("woolworths", "greenlane"))
+                .thenReturn(existing);
+        when(receiptDao.getNextSavedSequence()).thenReturn(8L);
+
+        receiptDao.saveFullReceipt(incoming, receipt,
+                Collections.<ReceiptItemEntity>emptyList(),
+                Collections.emptyList());
+
+        verify(receiptDao, never()).insertStore(incoming);
+        verify(receiptDao).insertReceipt(receipt);
+        assertEquals("existing-store", receipt.storeId);
+        assertEquals(8L, receipt.savedSequence);
+    }
+
+    @Test
+    public void saveFullReceipt_createsMissingNormalizedStore() {
+        StoreEntity store = new StoreEntity(
+                "store-1", "PAK'nSAVE", null);
+        ReceiptEntity receipt = receiptEntity("receipt-1", store.id);
+        when(receiptDao.findStore("paknsave", ""))
+                .thenReturn(null, store);
+        when(receiptDao.getNextSavedSequence()).thenReturn(1L);
+
+        receiptDao.saveFullReceipt(store, receipt,
+                Collections.<ReceiptItemEntity>emptyList(),
+                Collections.emptyList());
+
+        verify(receiptDao).insertStore(store);
+        verify(receiptDao).insertReceipt(receipt);
+        assertEquals("store-1", receipt.storeId);
+        assertEquals(1L, receipt.savedSequence);
+    }
+
+    private ReceiptEntity receiptEntity(String id, String storeId) {
+        return new ReceiptEntity(id, storeId,
+                LocalDateTime.of(2026, 8, 17, 10, 0),
+                0, false);
     }
 }

@@ -145,17 +145,8 @@ public class ReceiptRepositoryImpl implements IReceiptRepository {
     public List<Receipt> findDuplicateCandidates(String normalizedChain,
                                                  LocalDateTime hourStart,
                                                  LocalDateTime hourEnd) {
-        List<Receipt> candidates = mapReceipts(
-                receiptDao.getReceiptsInPurchaseHour(hourStart, hourEnd));
-        List<Receipt> matchingChain = new ArrayList<>();
-        for (Receipt candidate : candidates) {
-            if (candidate.getStore() != null
-                    && candidate.getStore().getNormalizedChainName()
-                    .equals(normalizedChain)) {
-                matchingChain.add(candidate);
-            }
-        }
-        return matchingChain;
+        return mapReceipts(receiptDao.getReceiptsInPurchaseHour(
+                normalizedChain, hourStart, hourEnd));
     }
 
     @Override
