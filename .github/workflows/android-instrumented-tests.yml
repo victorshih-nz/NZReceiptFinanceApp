@@ -53,18 +53,47 @@ jobs:
           --name room-test
           --package "system-images;android-35;google_apis;x86_64"
 
+      - name: Enable KVM acceleration
+        run: |
+          test -e /dev/kvm
+          sudo chmod 666 /dev/kvm
+
       - name: Start emulator and run Room tests
         run: |
-          nohup "$ANDROID_HOME/emulator/emulator" \
+          "$ANDROID_HOME/emulator/emulator" \
             -avd room-test \
             -no-window \
             -noaudio \
             -no-boot-anim \
             -no-snapshot \
+            -no-metrics \
+            -accel on \
             -gpu swiftshader_indirect \
             > /tmp/room-test-emulator.log 2>&1 &
-          "$ANDROID_HOME/platform-tools/adb" wait-for-device
-          timeout 300 bash -c 'until [ "$(adb shell getprop sys.boot_completed | tr -d "\r")" = "1" ]; do sleep 5; done'
+          emulator_pid=$!
+
+          device_ready=false
+          for attempt in $(seq 1 60); do
+            if ! kill -0 "$emulator_pid" 2>/dev/null; then
+              cat /tmp/room-test-emulator.log
+              exit 1
+            fi
+            if "$ANDROID_HOME/platform-tools/adb" devices |
+                grep -Eq '^emulator-[0-9]+[[:space:]]+device$'; then
+              device_ready=true
+              break
+            fi
+            sleep 5
+          done
+          if [[ "$device_ready" != true ]]; then
+            cat /tmp/room-test-emulator.log
+            exit 1
+          fi
+
+          timeout 300 bash -c 'until [ "$(adb shell getprop sys.boot_completed | tr -d "\r")" = "1" ]; do sleep 5; done' || {
+            cat /tmp/room-test-emulator.log
+            exit 1
+          }
           "$ANDROID_HOME/platform-tools/adb" shell settings put global window_animation_scale 0
           "$ANDROID_HOME/platform-tools/adb" shell settings put global transition_animation_scale 0
           "$ANDROID_HOME/platform-tools/adb" shell settings put global animator_duration_scale 0
