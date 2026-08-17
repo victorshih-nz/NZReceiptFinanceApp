@@ -2,6 +2,9 @@ package com.example.nzreceiptapp.data.repository;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -21,6 +24,7 @@ import com.example.nzreceiptapp.domain.service.IReceiptImageStore;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -99,8 +103,42 @@ public class ReceiptRepositoryImplTest {
 
         repository.deleteReceipt("receipt");
 
+        InOrder order = inOrder(receiptDao, imageStore);
+        order.verify(receiptDao).deleteReceiptAndUnusedStore("receipt");
+        order.verify(imageStore).delete("file:///receipt.jpg");
+    }
+
+    @Test
+    public void deleteReceipt_imageCleanupFailure_doesNotUndoDatabaseSuccess() {
+        ReceiptWithItems stored = new ReceiptWithItems();
+        stored.receipt = new ReceiptEntity(
+                "receipt", "store", LocalDateTime.now(), 0, false,
+                "OCR", "file:///receipt.jpg", 399L);
+        when(receiptDao.getReceiptById("receipt")).thenReturn(stored);
+        doThrow(new IllegalStateException("image unavailable"))
+                .when(imageStore).delete("file:///receipt.jpg");
+
+        repository.deleteReceipt("receipt");
+
         verify(receiptDao).deleteReceiptAndUnusedStore("receipt");
         verify(imageStore).delete("file:///receipt.jpg");
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void deleteReceipt_databaseFailure_propagatesAndSkipsImageCleanup() {
+        ReceiptWithItems stored = new ReceiptWithItems();
+        stored.receipt = new ReceiptEntity(
+                "receipt", "store", LocalDateTime.now(), 0, false,
+                "OCR", "file:///receipt.jpg", 399L);
+        when(receiptDao.getReceiptById("receipt")).thenReturn(stored);
+        doThrow(new IllegalStateException("database unavailable"))
+                .when(receiptDao).deleteReceiptAndUnusedStore("receipt");
+
+        try {
+            repository.deleteReceipt("receipt");
+        } finally {
+            verify(imageStore, never()).delete(any());
+        }
     }
 
     @Test

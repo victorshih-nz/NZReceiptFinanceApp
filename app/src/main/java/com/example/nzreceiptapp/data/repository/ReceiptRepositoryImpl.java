@@ -22,8 +22,13 @@ import com.example.nzreceiptapp.domain.service.IReceiptImageStore;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class ReceiptRepositoryImpl implements IReceiptRepository {
+    private static final Logger LOGGER =
+            Logger.getLogger(ReceiptRepositoryImpl.class.getName());
+
     private final ReceiptDao receiptDao;
     private final IReceiptImageStore imageStore;
 
@@ -115,7 +120,16 @@ public class ReceiptRepositoryImpl implements IReceiptRepository {
     public void deleteReceipt(String id) {
         ReceiptWithItems existing = receiptDao.getReceiptById(id);
         receiptDao.deleteReceiptAndUnusedStore(id);
-        if (existing != null) imageStore.delete(existing.receipt.imageUri);
+        if (existing == null || existing.receipt.imageUri == null) {
+            return;
+        }
+        try {
+            imageStore.delete(existing.receipt.imageUri);
+        } catch (RuntimeException cleanupFailure) {
+            LOGGER.log(Level.WARNING,
+                    "Receipt database row was deleted, but image cleanup failed",
+                    cleanupFailure);
+        }
     }
 
     private ReceiptItem mapItemToDomain(ReceiptItemEntity itemEntity, List<ItemDiscountEntity> discountEntities, CategoryEntity categoryEntity) {
