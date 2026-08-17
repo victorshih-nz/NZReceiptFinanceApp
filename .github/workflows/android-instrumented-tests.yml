@@ -38,11 +38,36 @@ jobs:
         run: |
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36.1"
 
-      - name: Run Room migration tests
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 35
-          arch: x86_64
-          profile: pixel_2
-          disable-animations: true
-          script: ./gradlew connectedDebugAndroidTest --stacktrace
+      - name: Install emulator image
+        run: >-
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          "emulator"
+          "system-images;android-35;google_apis;x86_64"
+
+      - name: Create emulator
+        run: >-
+          echo no |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager"
+          create avd --force
+          --name room-test
+          --package "system-images;android-35;google_apis;x86_64"
+
+      - name: Start emulator and run Room tests
+        run: |
+          "$ANDROID_HOME/emulator/emulator" \
+            -avd room-test \
+            -no-window \
+            -noaudio \
+            -no-boot-anim \
+            -no-snapshot \
+            -gpu swiftshader_indirect &
+          "$ANDROID_HOME/platform-tools/adb" wait-for-device
+          timeout 300 bash -c 'until [ "$(adb shell getprop sys.boot_completed | tr -d "\r")" = "1" ]; do sleep 5; done'
+          "$ANDROID_HOME/platform-tools/adb" shell settings put global window_animation_scale 0
+          "$ANDROID_HOME/platform-tools/adb" shell settings put global transition_animation_scale 0
+          "$ANDROID_HOME/platform-tools/adb" shell settings put global animator_duration_scale 0
+          ./gradlew connectedDebugAndroidTest --stacktrace
+
+      - name: Stop emulator
+        if: always()
+        run: "$ANDROID_HOME/platform-tools/adb" emu kill || true
