@@ -4,6 +4,7 @@ import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
+import com.example.nzreceiptapp.domain.logic.ReceiptValidator;
 import com.example.nzreceiptapp.domain.model.Category;
 import com.example.nzreceiptapp.domain.model.Receipt;
 import com.example.nzreceiptapp.domain.model.ReceiptItem;
@@ -115,15 +116,8 @@ public final class ScannerViewModel extends ViewModel {
             return;
         }
 
-        Receipt editedReceipt;
-        try {
-            editedReceipt = createEditedReceipt(
-                    current.getDraft(), chainName, branchName, editedItems);
-        } catch (IllegalArgumentException exception) {
-            uiState.setValue(ScannerUiState.error(
-                    current.getDraft(), current.getCategories(), exception.getMessage()));
-            return;
-        }
+        Receipt editedReceipt = createEditedReceipt(
+                current.getDraft(), chainName, branchName, editedItems);
 
         List<Category> categories = current.getCategories();
         uiState.setValue(ScannerUiState.saving(editedReceipt, categories));
@@ -131,6 +125,11 @@ public final class ScannerViewModel extends ViewModel {
             try {
                 saveUseCase.execute(editedReceipt);
                 uiState.postValue(ScannerUiState.saved(editedReceipt, categories));
+            } catch (SaveReceiptUseCase.ReceiptValidationException exception) {
+                uiState.postValue(ScannerUiState.error(
+                        editedReceipt,
+                        categories,
+                        validationMessage(exception.getValidationResult())));
             } catch (Exception exception) {
                 uiState.postValue(ScannerUiState.error(
                         editedReceipt, categories, "Saving failed: " + safeMessage(exception)));
@@ -155,17 +154,12 @@ public final class ScannerViewModel extends ViewModel {
                                         String branchName, List<ReceiptItem> items) {
         String cleanChain = chainName == null ? "" : chainName.trim();
         String cleanBranch = branchName == null ? "" : branchName.trim();
-        if (cleanChain.isEmpty()) throw new IllegalArgumentException("Store chain is required");
-        if (cleanBranch.isEmpty()) throw new IllegalArgumentException("Branch is required");
-        if (items == null || items.isEmpty()) {
-            throw new IllegalArgumentException("At least one receipt item is required");
-        }
 
         Store store = new Store(draft.getStore().getId(), cleanChain, cleanBranch);
         return new Receipt(
                 draft.getId(),
                 store,
-                new ArrayList<>(items),
+                items == null ? null : new ArrayList<>(items),
                 draft.getPurchaseDate(),
                 draft.getTotalDiscountCents(),
                 draft.isSynced(),
@@ -182,6 +176,35 @@ public final class ScannerViewModel extends ViewModel {
             if (category.isSubCategory()) result.add(category);
         }
         return result;
+    }
+
+    private String validationMessage(ReceiptValidator.ValidationResult result) {
+        int itemNumber = result.getItemIndex() + 1;
+        switch (result.getErrorCode()) {
+            case RECEIPT_REQUIRED:
+                return "Receipt is required";
+            case CHAIN_REQUIRED:
+                return "Store chain is required";
+            case ITEMS_REQUIRED:
+                return "At least one receipt item is required";
+            case ITEM_REQUIRED:
+                return "Item " + itemNumber + " is required";
+            case ITEM_NAME_REQUIRED:
+                return "Item " + itemNumber + " name is required";
+            case ITEM_QUANTITY_INVALID:
+                return "Item " + itemNumber + " quantity must be greater than zero";
+            case ITEM_UNIT_PRICE_NEGATIVE:
+                return "Item " + itemNumber + " unit price cannot be negative";
+            case ITEM_CATEGORY_INVALID:
+                return "Item " + itemNumber
+                        + " category must be a child category or Uncategorized";
+            case ITEM_FINAL_SUBTOTAL_NEGATIVE:
+                return "Item " + itemNumber + " total cannot be negative";
+            case RECEIPT_FINAL_TOTAL_NEGATIVE:
+                return "Receipt total cannot be negative";
+            default:
+                return "Receipt validation failed";
+        }
     }
 
     private String safeMessage(Exception exception) {

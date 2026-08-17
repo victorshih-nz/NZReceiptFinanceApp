@@ -60,9 +60,7 @@ public class ParseReceiptUseCase {
             throw new IllegalArgumentException("No receipt items could be recognised");
         }
         
-        String resolvedBranch = branchName == null || branchName.trim().isEmpty()
-                ? "Unknown Branch"
-                : branchName.trim();
+        String resolvedBranch = branchName == null ? "" : branchName.trim();
         Store store = new Store(UUID.randomUUID().toString(), resolvedChain, resolvedBranch);
         
         return new Receipt(
