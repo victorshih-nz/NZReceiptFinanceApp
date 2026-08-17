@@ -47,6 +47,18 @@ public class HistoryViewModelTest {
     }
 
     @Test
+    public void initialState_containsBothModeDefaultsInOneSnapshot() {
+        HistoryUiState state = state();
+
+        assertEquals(HistoryUiState.ViewMode.RECEIPTS, state.getViewMode());
+        assertEquals(HistoryUiState.LoadState.IDLE, state.getLoadState());
+        assertEquals(15, state.getReceiptPaging().getPageSize());
+        assertEquals(30, state.getItemPaging().getPageSize());
+        assertEquals(1, state.getReceiptPaging().getCurrentPage());
+        assertEquals(1, state.getItemPaging().getCurrentPage());
+    }
+
+    @Test
     public void loadData_loadsOneBasedFirstReceiptPageWithDefaultSize() {
         List<Receipt> expected = Collections.singletonList(receipt("receipt-1"));
         when(getReceiptsPagedUseCase.execute(1, 15))
@@ -54,7 +66,8 @@ public class HistoryViewModelTest {
 
         viewModel.loadData();
 
-        assertEquals(expected, viewModel.getReceipts().getValue());
+        assertEquals(expected, state().getReceipts());
+        assertEquals(HistoryUiState.LoadState.CONTENT, state().getLoadState());
         assertPaging(1, 15, 2, false, true);
         verify(getReceiptsPagedUseCase).execute(1, 15);
     }
@@ -70,7 +83,7 @@ public class HistoryViewModelTest {
         viewModel.nextPage();
 
         assertEquals("receipt-2",
-                viewModel.getReceipts().getValue().get(0).getId());
+                state().getReceipts().get(0).getId());
         assertPaging(2, 15, 2, true, false);
 
         viewModel.nextPage();
@@ -104,7 +117,8 @@ public class HistoryViewModelTest {
 
         viewModel.loadData();
 
-        assertEquals(Collections.emptyList(), viewModel.getReceipts().getValue());
+        assertEquals(Collections.emptyList(), state().getReceipts());
+        assertEquals(HistoryUiState.LoadState.EMPTY, state().getLoadState());
         assertPaging(1, 15, 1, false, false);
     }
 
@@ -119,12 +133,12 @@ public class HistoryViewModelTest {
 
         viewModel.loadData();
         viewModel.nextPage();
-        viewModel.setViewMode(HistoryViewModel.ViewMode.ALL_ITEMS);
+        viewModel.setViewMode(HistoryUiState.ViewMode.ALL_ITEMS);
 
         assertPaging(1, 30, 2, false, true);
         verify(getAllItemsPagedUseCase).execute(1, 30);
 
-        viewModel.setViewMode(HistoryViewModel.ViewMode.RECEIPTS);
+        viewModel.setViewMode(HistoryUiState.ViewMode.RECEIPTS);
 
         assertPaging(2, 15, 2, true, false);
         verify(getReceiptsPagedUseCase, times(2)).execute(2, 15);
@@ -144,7 +158,7 @@ public class HistoryViewModelTest {
         viewModel.loadData();
 
         assertEquals("receipt-16",
-                viewModel.getReceipts().getValue().get(0).getId());
+                state().getReceipts().get(0).getId());
         assertPaging(2, 15, 2, true, false);
     }
 
@@ -165,13 +179,16 @@ public class HistoryViewModelTest {
                               int totalPages,
                               boolean hasPrevious,
                               boolean hasNext) {
-        HistoryViewModel.PagingUiState state =
-                viewModel.getPagingState().getValue();
-        assertEquals(currentPage, state.getCurrentPage());
-        assertEquals(pageSize, state.getPageSize());
-        assertEquals(totalPages, state.getTotalPages());
-        assertEquals(hasPrevious, state.hasPrevious());
-        assertEquals(hasNext, state.hasNext());
+        HistoryUiState.PagingState paging = state().getActivePaging();
+        assertEquals(currentPage, paging.getCurrentPage());
+        assertEquals(pageSize, paging.getPageSize());
+        assertEquals(totalPages, paging.getTotalPages());
+        assertEquals(hasPrevious, paging.hasPrevious());
+        assertEquals(hasNext, paging.hasNext());
+    }
+
+    private HistoryUiState state() {
+        return viewModel.getUiState().getValue();
     }
 
     private PageResult<Receipt> receiptPage(String id,

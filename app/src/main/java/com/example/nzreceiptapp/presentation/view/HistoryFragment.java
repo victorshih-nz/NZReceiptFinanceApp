@@ -19,6 +19,7 @@ import com.example.nzreceiptapp.databinding.FragmentHistoryBinding;
 import com.example.nzreceiptapp.di.ViewModelFactory;
 import com.example.nzreceiptapp.presentation.adapter.ReceiptAdapter;
 import com.example.nzreceiptapp.presentation.adapter.ReceiptItemSummaryAdapter;
+import com.example.nzreceiptapp.presentation.viewmodel.HistoryUiState;
 import com.example.nzreceiptapp.presentation.viewmodel.HistoryViewModel;
 import com.google.android.material.tabs.TabLayout;
 import com.example.nzreceiptapp.R;
@@ -70,9 +71,9 @@ public class HistoryFragment extends Fragment {
             @Override
             public void onTabSelected(TabLayout.Tab tab) {
                 if (tab.getPosition() == 0) {
-                    viewModel.setViewMode(HistoryViewModel.ViewMode.RECEIPTS);
+                    viewModel.setViewMode(HistoryUiState.ViewMode.RECEIPTS);
                 } else {
-                    viewModel.setViewMode(HistoryViewModel.ViewMode.ALL_ITEMS);
+                    viewModel.setViewMode(HistoryUiState.ViewMode.ALL_ITEMS);
                 }
             }
             @Override public void onTabUnselected(TabLayout.Tab tab) {}
@@ -123,47 +124,42 @@ public class HistoryFragment extends Fragment {
     }
 
     private void observeViewModel() {
-        viewModel.getViewMode().observe(getViewLifecycleOwner(), mode -> {
-            if (mode == HistoryViewModel.ViewMode.RECEIPTS) {
-                binding.recyclerView.setAdapter(receiptAdapter);
-            } else {
-                binding.recyclerView.setAdapter(itemsAdapter);
-            }
-        });
-
-        viewModel.getReceipts().observe(getViewLifecycleOwner(), receipts -> {
-            if (viewModel.getViewMode().getValue() == HistoryViewModel.ViewMode.RECEIPTS) {
-                receiptAdapter.submitList(receipts);
-                binding.txtEmpty.setVisibility((receipts == null || receipts.isEmpty()) ? View.VISIBLE : View.GONE);
-            }
-        });
-
-        viewModel.getAllItems().observe(getViewLifecycleOwner(), items -> {
-            if (viewModel.getViewMode().getValue() == HistoryViewModel.ViewMode.ALL_ITEMS) {
-                itemsAdapter.submitList(items);
-                binding.txtEmpty.setVisibility((items == null || items.isEmpty()) ? View.VISIBLE : View.GONE);
-            }
-        });
-
-        viewModel.getPagingState().observe(
-                getViewLifecycleOwner(), this::renderPagingState);
-
-        viewModel.getIsLoading().observe(getViewLifecycleOwner(), isLoading -> {
-            binding.swipeRefresh.setRefreshing(isLoading != null && isLoading);
-            HistoryViewModel.PagingUiState state =
-                    viewModel.getPagingState().getValue();
-            if (state != null) renderPagingState(state);
-        });
-
-        viewModel.getErrorMessages().observe(getViewLifecycleOwner(), error -> {
-            if (error != null) {
-                Toast.makeText(getContext(), error, Toast.LENGTH_LONG).show();
-            }
-        });
+        viewModel.getUiState().observe(
+                getViewLifecycleOwner(), this::renderState);
     }
 
-    private void renderPagingState(HistoryViewModel.PagingUiState state) {
-        boolean loading = Boolean.TRUE.equals(viewModel.getIsLoading().getValue());
+    private void renderState(HistoryUiState state) {
+        boolean receiptsMode =
+                state.getViewMode() == HistoryUiState.ViewMode.RECEIPTS;
+        if (receiptsMode) {
+            binding.recyclerView.setAdapter(receiptAdapter);
+            receiptAdapter.submitList(state.getReceipts());
+        } else {
+            binding.recyclerView.setAdapter(itemsAdapter);
+            itemsAdapter.submitList(state.getAllItems());
+        }
+
+        binding.swipeRefresh.setRefreshing(state.isLoading());
+        binding.txtEmpty.setVisibility(
+                state.getLoadState() == HistoryUiState.LoadState.EMPTY
+                        && state.isActiveContentEmpty()
+                        ? View.VISIBLE : View.GONE);
+        renderPagingState(state.getActivePaging(), state.isLoading());
+
+        int tabPosition = receiptsMode ? 0 : 1;
+        TabLayout.Tab selectedTab = binding.tabLayout.getTabAt(tabPosition);
+        if (selectedTab != null && !selectedTab.isSelected()) {
+            selectedTab.select();
+        }
+
+        if (state.getErrorMessage() != null) {
+            Toast.makeText(
+                    getContext(), state.getErrorMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private void renderPagingState(HistoryUiState.PagingState state,
+                                   boolean loading) {
         binding.txtPage.setText(getString(
                 R.string.page_indicator,
                 state.getCurrentPage(),
