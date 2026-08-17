@@ -5,6 +5,7 @@ import androidx.room.Insert;
 import androidx.room.OnConflictStrategy;
 import androidx.room.Query;
 import androidx.room.Transaction;
+import androidx.room.Update;
 
 import com.example.nzreceiptapp.data.local.entity.ItemDiscountEntity;
 import com.example.nzreceiptapp.data.local.entity.ReceiptEntity;
@@ -29,6 +30,9 @@ public interface ReceiptDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void insertItemDiscounts(List<ItemDiscountEntity> discounts);
+
+    @Update
+    int updateReceiptRow(ReceiptEntity receipt);
 
     @Transaction
     @Query("SELECT * FROM receipts "
@@ -61,6 +65,9 @@ public interface ReceiptDao {
     @Transaction
     @Query("SELECT * FROM receipts WHERE id = :id")
     ReceiptWithItems getReceiptById(String id);
+
+    @Query("SELECT * FROM receipts WHERE id = :id LIMIT 1")
+    ReceiptEntity getReceiptEntityById(String id);
 
     @Transaction
     @Query("SELECT receipts.* FROM receipts "
@@ -106,6 +113,9 @@ public interface ReceiptDao {
     @Query("DELETE FROM receipts WHERE id = :id")
     void deleteById(String id);
 
+    @Query("DELETE FROM receipt_items WHERE receipt_id = :receiptId")
+    void deleteItemsByReceiptId(String receiptId);
+
     @Query("SELECT * FROM stores WHERE normalized_chain = :normalizedChain "
             + "AND normalized_branch = :normalizedBranch LIMIT 1")
     StoreEntity findStore(String normalizedChain, String normalizedBranch);
@@ -140,6 +150,43 @@ public interface ReceiptDao {
         if (discounts != null && !discounts.isEmpty()) {
             insertItemDiscounts(discounts);
         }
+    }
+
+    @Transaction
+    default void updateFullReceipt(StoreEntity store, ReceiptEntity receipt,
+                                   List<ReceiptItemEntity> items,
+                                   List<ItemDiscountEntity> discounts) {
+        ReceiptEntity existingReceipt = getReceiptEntityById(receipt.id);
+        if (existingReceipt == null) {
+            throw new IllegalArgumentException(
+                    "Receipt does not exist: " + receipt.id);
+        }
+
+        StoreEntity targetStore = findStore(
+                store.normalizedChain, store.normalizedBranch);
+        if (targetStore == null) {
+            insertStore(store);
+            targetStore = findStore(
+                    store.normalizedChain, store.normalizedBranch);
+        }
+        if (targetStore == null) {
+            throw new IllegalStateException("Unable to create or find store");
+        }
+
+        String oldStoreId = existingReceipt.storeId;
+        receipt.storeId = targetStore.id;
+        receipt.savedSequence = existingReceipt.savedSequence;
+        if (updateReceiptRow(receipt) != 1) {
+            throw new IllegalStateException(
+                    "Unable to update receipt: " + receipt.id);
+        }
+
+        deleteItemsByReceiptId(receipt.id);
+        insertReceiptItems(items);
+        if (discounts != null && !discounts.isEmpty()) {
+            insertItemDiscounts(discounts);
+        }
+        deleteStoreIfUnused(oldStoreId);
     }
 
     @Transaction

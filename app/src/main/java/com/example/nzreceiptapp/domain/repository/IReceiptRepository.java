@@ -17,6 +17,11 @@ public interface IReceiptRepository {
     void saveReceipt(Receipt receipt);
 
     /**
+     * Updates an existing Receipt and its owned Item/Discount graph atomically.
+     */
+    void updateReceipt(Receipt receipt);
+
+    /**
      * 獲取所有已儲存的發票清單
      */
     List<Receipt> getAllReceipts();

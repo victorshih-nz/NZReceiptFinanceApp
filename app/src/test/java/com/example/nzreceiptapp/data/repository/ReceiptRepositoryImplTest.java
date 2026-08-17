@@ -65,6 +65,31 @@ public class ReceiptRepositoryImplTest {
     }
 
     @Test
+    public void updateReceipt_mapsEditedGraphToUpdateTransaction() {
+        ReceiptItem item = new ReceiptItem(
+                "item", "raw milk", "Milk", 1, "ea", 399,
+                Collections.emptyList(), null, false);
+        Receipt receipt = new Receipt(
+                "receipt", new Store("store", " PAK'nSAVE ", " Albany "),
+                Collections.singletonList(item),
+                LocalDateTime.of(2026, 8, 17, 10, 30),
+                0, false, "EDITED OCR", "file:///receipt.jpg", 399L);
+
+        repository.updateReceipt(receipt);
+
+        ArgumentCaptor<StoreEntity> storeCaptor =
+                ArgumentCaptor.forClass(StoreEntity.class);
+        ArgumentCaptor<ReceiptEntity> receiptCaptor =
+                ArgumentCaptor.forClass(ReceiptEntity.class);
+        verify(receiptDao).updateFullReceipt(
+                storeCaptor.capture(), receiptCaptor.capture(), any(), any());
+        assertEquals("paknsave", storeCaptor.getValue().normalizedChain);
+        assertEquals("albany", storeCaptor.getValue().normalizedBranch);
+        assertEquals("receipt", receiptCaptor.getValue().id);
+        assertEquals("EDITED OCR", receiptCaptor.getValue().rawOcrText);
+    }
+
+    @Test
     public void deleteReceipt_removesPersistedImageAfterDatabaseDelete() {
         ReceiptWithItems stored = new ReceiptWithItems();
         stored.receipt = new ReceiptEntity(
