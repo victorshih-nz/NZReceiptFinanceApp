@@ -35,6 +35,7 @@ jobs:
           --tests "com.example.nzreceiptapp.domain.model.PageResultTest"
           --tests "com.example.nzreceiptapp.domain.logic.ReceiptValidatorTest"
           --tests "com.example.nzreceiptapp.domain.usecase.SaveReceiptUseCaseTest"
+          --tests "com.example.nzreceiptapp.domain.usecase.UpdateReceiptUseCaseTest"
           --tests "com.example.nzreceiptapp.domain.usecase.GetReceiptsPagedUseCaseTest"
           --tests "com.example.nzreceiptapp.domain.usecase.GetAllItemsPagedUseCaseTest"
           --tests "com.example.nzreceiptapp.data.repository.ReceiptRepositoryImplTest"
