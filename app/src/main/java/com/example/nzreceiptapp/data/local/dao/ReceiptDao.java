@@ -5,6 +5,7 @@ import androidx.room.Insert;
 import androidx.room.OnConflictStrategy;
 import androidx.room.Query;
 import androidx.room.Transaction;
+import androidx.room.Update;
 
 import com.example.nzreceiptapp.data.local.entity.ItemDiscountEntity;
 import com.example.nzreceiptapp.data.local.entity.ReceiptEntity;
@@ -13,6 +14,7 @@ import com.example.nzreceiptapp.data.local.entity.ReceiptItemRow;
 import com.example.nzreceiptapp.data.local.entity.ReceiptWithItems;
 import com.example.nzreceiptapp.data.local.entity.StoreEntity;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Dao
@@ -20,7 +22,7 @@ public interface ReceiptDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     long insertStore(StoreEntity store);
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.ABORT)
     void insertReceipt(ReceiptEntity receipt);
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -29,8 +31,13 @@ public interface ReceiptDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void insertItemDiscounts(List<ItemDiscountEntity> discounts);
 
+    @Update
+    int updateReceiptRow(ReceiptEntity receipt);
+
     @Transaction
-    @Query("SELECT * FROM receipts ORDER BY purchase_date DESC LIMIT :limit OFFSET :offset")
+    @Query("SELECT * FROM receipts "
+            + "ORDER BY purchase_date DESC, saved_sequence ASC "
+            + "LIMIT :limit OFFSET :offset")
     List<ReceiptWithItems> getReceiptsPaged(int limit, int offset);
 
     @Query("SELECT COUNT(*) FROM receipts")
@@ -59,12 +66,26 @@ public interface ReceiptDao {
     @Query("SELECT * FROM receipts WHERE id = :id")
     ReceiptWithItems getReceiptById(String id);
 
+    @Query("SELECT * FROM receipts WHERE id = :id LIMIT 1")
+    ReceiptEntity getReceiptEntityById(String id);
+
+    @Transaction
+    @Query("SELECT receipts.* FROM receipts "
+            + "INNER JOIN stores ON stores.id = receipts.store_id "
+            + "WHERE stores.normalized_chain = :normalizedChain "
+            + "AND purchase_date >= :hourStart AND purchase_date < :hourEnd "
+            + "ORDER BY purchase_date ASC, saved_sequence ASC")
+    List<ReceiptWithItems> getReceiptsInPurchaseHour(String normalizedChain,
+                                                     LocalDateTime hourStart,
+                                                     LocalDateTime hourEnd);
+
     @Transaction
     @Query("SELECT ri.*, s.chain_name as chainName, s.branch_name as branchName, r.purchase_date as purchaseDate " +
            "FROM receipt_items ri " +
            "JOIN receipts r ON ri.receipt_id = r.id " +
            "JOIN stores s ON r.store_id = s.id " +
-           "ORDER BY r.purchase_date DESC LIMIT :limit OFFSET :offset")
+           "ORDER BY r.purchase_date DESC, r.saved_sequence ASC, ri.rowid ASC "
+           + "LIMIT :limit OFFSET :offset")
     List<ReceiptItemRow> getAllItemsPaged(int limit, int offset);
 
     @Query("SELECT COUNT(*) FROM receipt_items")
@@ -92,8 +113,15 @@ public interface ReceiptDao {
     @Query("DELETE FROM receipts WHERE id = :id")
     void deleteById(String id);
 
-    @Query("SELECT * FROM stores WHERE chain_name = :chainName AND branch_name = :branchName LIMIT 1")
-    StoreEntity findStore(String chainName, String branchName);
+    @Query("DELETE FROM receipt_items WHERE receipt_id = :receiptId")
+    void deleteItemsByReceiptId(String receiptId);
+
+    @Query("SELECT * FROM stores WHERE normalized_chain = :normalizedChain "
+            + "AND normalized_branch = :normalizedBranch LIMIT 1")
+    StoreEntity findStore(String normalizedChain, String normalizedBranch);
+
+    @Query("SELECT COALESCE(MAX(saved_sequence), 0) + 1 FROM receipts")
+    long getNextSavedSequence();
 
     @Query("SELECT store_id FROM receipts WHERE id = :receiptId LIMIT 1")
     String findStoreIdForReceipt(String receiptId);
@@ -105,20 +133,60 @@ public interface ReceiptDao {
     @Transaction
     default void saveFullReceipt(StoreEntity store, ReceiptEntity receipt, 
                                 List<ReceiptItemEntity> items, List<ItemDiscountEntity> discounts) {
-        StoreEntity existingStore = findStore(store.chainName, store.branchName);
+        StoreEntity existingStore = findStore(
+                store.normalizedChain, store.normalizedBranch);
         if (existingStore == null) {
             insertStore(store);
-            existingStore = findStore(store.chainName, store.branchName);
+            existingStore = findStore(
+                    store.normalizedChain, store.normalizedBranch);
         }
         if (existingStore == null) {
             throw new IllegalStateException("Unable to create or find store");
         }
         receipt.storeId = existingStore.id;
+        receipt.savedSequence = getNextSavedSequence();
         insertReceipt(receipt);
         insertReceiptItems(items);
         if (discounts != null && !discounts.isEmpty()) {
             insertItemDiscounts(discounts);
         }
+    }
+
+    @Transaction
+    default void updateFullReceipt(StoreEntity store, ReceiptEntity receipt,
+                                   List<ReceiptItemEntity> items,
+                                   List<ItemDiscountEntity> discounts) {
+        ReceiptEntity existingReceipt = getReceiptEntityById(receipt.id);
+        if (existingReceipt == null) {
+            throw new IllegalArgumentException(
+                    "Receipt does not exist: " + receipt.id);
+        }
+
+        StoreEntity targetStore = findStore(
+                store.normalizedChain, store.normalizedBranch);
+        if (targetStore == null) {
+            insertStore(store);
+            targetStore = findStore(
+                    store.normalizedChain, store.normalizedBranch);
+        }
+        if (targetStore == null) {
+            throw new IllegalStateException("Unable to create or find store");
+        }
+
+        String oldStoreId = existingReceipt.storeId;
+        receipt.storeId = targetStore.id;
+        receipt.savedSequence = existingReceipt.savedSequence;
+        if (updateReceiptRow(receipt) != 1) {
+            throw new IllegalStateException(
+                    "Unable to update receipt: " + receipt.id);
+        }
+
+        deleteItemsByReceiptId(receipt.id);
+        insertReceiptItems(items);
+        if (discounts != null && !discounts.isEmpty()) {
+            insertItemDiscounts(discounts);
+        }
+        deleteStoreIfUnused(oldStoreId);
     }
 
     @Transaction
