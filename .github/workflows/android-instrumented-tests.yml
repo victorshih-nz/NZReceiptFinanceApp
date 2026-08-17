@@ -101,7 +101,7 @@ jobs:
           "$ANDROID_HOME/platform-tools/adb" shell settings put global transition_animation_scale 0
           "$ANDROID_HOME/platform-tools/adb" shell settings put global animator_duration_scale 0
           ./gradlew connectedDebugAndroidTest \
-            -Pandroid.testInstrumentationRunnerArguments.class=com.example.nzreceiptapp.data.local.AppDatabaseMigrationTest \
+            -Pandroid.testInstrumentationRunnerArguments.class=com.example.nzreceiptapp.data.local.ReceiptDaoTransactionTest \
             --stacktrace
           ./gradlew connectedDebugAndroidTest --stacktrace
 
