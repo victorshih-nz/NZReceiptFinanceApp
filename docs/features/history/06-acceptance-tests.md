@@ -8,15 +8,15 @@
 | Feature name | History Completion v1 |
 | Document ID | `HIS-ATS-06` |
 | Repository source | `06-acceptance-tests.md` |
-| Version | 0.1 |
+| Version | 0.2 |
 | Status | Draft for review |
 | Date | 2026-08-17 |
 | Author | Victor Shih — Systems Analyst |
-| Source scope | `HIS-SCP-01`, version 0.8 |
-| Source requirements | `HIS-FRS-02`, version 0.9 |
-| Source use cases | `HIS-UCS-03`, version 0.8 |
-| Source business rules | `HIS-BRS-04`, version 0.7 |
-| Source UI specification | `HIS-UIS-05`, version 0.4 |
+| Source scope | `HIS-SCP-01`, version 0.9 |
+| Source requirements | `HIS-FRS-02`, version 1.0 |
+| Source use cases | `HIS-UCS-03`, version 0.9 |
+| Source business rules | `HIS-BRS-04`, version 0.8 |
+| Source UI specification | `HIS-UIS-05`, version 0.5 |
 | Code baseline | `main` at `5fd0fbd` |
 
 ### 1.1 Revision history
@@ -24,6 +24,7 @@
 | Version | Date | Author | Change |
 | --- | --- | --- | --- |
 | 0.1 | 2026-08-17 | Victor Shih | Initial acceptance-test specification covering History browse, paging, state, delete, saved-Receipt edit, timestamp, duplicate detection, Store identity, and non-functional requirements |
+| 0.2 | 2026-08-17 | Victor Shih | Added acceptance coverage for removing spaces and punctuation from normalized Chain and Branch keys |
 
 ## 2. Purpose
 
@@ -107,7 +108,7 @@ Assume `R-A` already exists.
 
 | Draft | Chain | Branch | Purchase timestamp | Final payable | Expected |
 | --- | --- | --- | --- | ---: | --- |
-| `D-SAME` | ` woolworths ` | `Mt Eden` | `2026-08-17 10:59:59` | 9500 | Duplicate; same normalized Chain, date, hour, and total. |
+| `D-SAME` | ` wool-worths! ` | `Mt Eden` | `2026-08-17 10:59:59` | 9500 | Duplicate; spaces and punctuation are removed from the same normalized Chain. |
 | `D-NEXT-HOUR` | `WOOLWORTHS` | `Greenlane` | `2026-08-17 11:00:00` | 9500 | Unique; different hour. |
 | `D-NEXT-DAY` | `Woolworths` | `Greenlane` | `2026-08-18 10:05:12` | 9500 | Unique; different date. |
 | `D-TOTAL` | `Woolworths` | `Greenlane` | `2026-08-17 10:05:12` | 9501 | Unique; different total in cents. |
@@ -490,7 +491,7 @@ Assume `R-A` already exists.
 - **Requirements:** `FR-HIS-EDT-17`, `FR-HIS-STR-01`,
   `FR-HIS-STR-03`
 - **Given** Store `Woolworths / Greenlane` already exists.
-- **When** a Receipt is saved or updated with ` woolworths ` and ` GREENLANE `.
+- **When** a Receipt is saved or updated with ` wool-worths ` and ` GREEN LANE! `.
 - **Then** the existing normalized Store is reused and no duplicate Store row is
   created.
 - **And** if an edit moves the Receipt to another Store, the previous Store is
@@ -633,8 +634,8 @@ Assume `R-A` already exists.
 - **Requirements:** `FR-HIS-DUP-01`, `FR-HIS-DUP-02`,
   `FR-HIS-STR-04`
 - **Given** `R-A` exists.
-- **When** `D-SAME` is checked using different Chain case/outer spaces and a
-  different Branch.
+- **When** `D-SAME` is checked using different Chain case, spaces, punctuation,
+  and a different Branch.
 - **Then** it is a duplicate.
 - **And** the user's presentation casing is not replaced by the normalized key.
 - **When** `D-TOTAL` or `D-CHAIN` is checked.
@@ -646,10 +647,10 @@ Assume `R-A` already exists.
 - **Requirements:** `FR-HIS-STR-01`, `FR-HIS-STR-02`,
   `FR-HIS-STR-03`
 - **Given** a normalized Store identity can be inspected.
-- **When** otherwise equivalent Receipts use Branch `null`, empty, or only
-  whitespace.
-- **Then** all three forms identify the same empty-Branch Store.
-- **When** Chain or Branch differs only by case or surrounding spaces.
+- **When** otherwise equivalent Receipts use Branch `null`, empty, only
+  whitespace, or punctuation only.
+- **Then** all four forms identify the same empty-Branch Store.
+- **When** Chain or Branch differs only by case, spaces, or punctuation.
 - **Then** the existing matching Store is reused rather than duplicated.
 
 ### 5.6 Non-functional and regression acceptance

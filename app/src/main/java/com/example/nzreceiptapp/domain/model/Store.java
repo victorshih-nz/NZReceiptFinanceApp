@@ -1,5 +1,7 @@
 package com.example.nzreceiptapp.domain.model;
 
+import java.util.Locale;
+
 /**
  * 店家與分店實體 (Domain Entity)
  */
@@ -17,11 +19,20 @@ public class Store {
     public String getId() { return id; }
     public String getChainName() { return chainName; }
     public String getBranchName() { return branchName; }
-    public String getNormalizedChainName(){
-        String cleanStr = chainName.replaceAll("['\"\\p{P}|\\p{S}]", "");
-        return cleanStr.trim().toLowerCase();}
-    public String getNormalizedBranchName(){
-        String cleanStr = branchName.replaceAll("['\"\\p{P}|\\p{S}]", "");
-        return cleanStr.trim().toLowerCase();
+
+    public String getNormalizedChainName() {
+        return normalize(chainName);
+    }
+
+    public String getNormalizedBranchName() {
+        return normalize(branchName);
+    }
+
+    private static String normalize(String value) {
+        return value == null
+                ? ""
+                : value.trim()
+                        .replaceAll("[^A-Za-z0-9]", "")
+                        .toLowerCase(Locale.ROOT);
     }
 }

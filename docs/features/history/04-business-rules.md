@@ -8,12 +8,12 @@
 | Feature name | History Completion v1 |
 | Document ID | `HIS-BRS-04` |
 | Repository source | `04-business-rules.md` |
-| Version | 0.7 |
+| Version | 0.8 |
 | Status | Draft for review |
 | Date | 2026-08-17 |
 | Author | Victor Shih — Systems Analyst |
-| Source requirements | `HIS-FRS-02`, version 0.9 |
-| Source use cases | `HIS-UCS-03`, version 0.8 |
+| Source requirements | `HIS-FRS-02`, version 1.0 |
+| Source use cases | `HIS-UCS-03`, version 0.9 |
 | Code baseline | `main` at `5fd0fbd` |
 
 ### 1.1 Revision history
@@ -27,6 +27,7 @@
 | 0.5 | 2026-08-17 | Victor Shih | Resolved Store identity using normalized Chain and Branch with empty-Branch equivalence |
 | 0.6 | 2026-08-17 | Victor Shih | Renamed duplicate confirmation actions to Discard/Add and aligned no-insert/insert outcomes |
 | 0.7 | 2026-08-17 | Victor Shih | Aligned traceability with the final duplicate dialog copy |
+| 0.8 | 2026-08-17 | Victor Shih | Defined normalized Chain and Branch keys as lowercase ASCII letters and digits only |
 
 ## 2. Purpose
 
@@ -196,7 +197,7 @@ implemented.
 
 | ID | Business rule | Type | Source |
 | --- | --- | --- | --- |
-| `BR-HIS-DUP-01` | The Chain duplicate-comparison key is `lowercase(trim(chain))`. This comparison key does not require the user-facing Chain text to be stored or displayed in lowercase. | Derivation | `FR-HIS-DUP-01` |
+| `BR-HIS-DUP-01` | The Chain duplicate-comparison key retains ASCII letters and digits only and converts letters to lowercase. Spaces and punctuation are removed; the user-facing Chain text remains unchanged. | Derivation | `FR-HIS-DUP-01` |
 | `BR-HIS-DUP-02` | A potential duplicate exists only when normalized Chain, purchase calendar date/hour, and final payable total in cents all equal an existing Receipt. Minute, second, fractional second, Branch, item count, item names, image, and Receipt ID are not part of this key. | Validation | `FR-HIS-DUP-02` |
 | `BR-HIS-DUP-03` | Duplicate detection applies before inserting a new Receipt and after all values used by the duplicate key have passed validation and calculation. | State transition | `FR-HIS-DUP-02`, `FR-HIS-EDT-23`, `FR-HIS-EDT-24` |
 | `BR-HIS-DUP-04` | No duplicate match permits normal initial save without a duplicate confirmation. | State transition | `FR-HIS-DUP-03` |
@@ -218,9 +219,9 @@ implemented.
 
 | ID | Business rule | Type | Source |
 | --- | --- | --- | --- |
-| `BR-HIS-STR-01` | Store Chain identity is `lowercase(trim(chain))`; Store Branch identity is `lowercase(trim(branch))`. These normalized values are comparison keys and do not require lowercase user-facing display text. | Derivation | `FR-HIS-STR-01` |
-| `BR-HIS-STR-02` | A `null`, empty, or whitespace-only Branch produces the same empty normalized Branch identity. | Derivation | `FR-HIS-STR-02` |
-| `BR-HIS-STR-03` | Initial save and update must reuse one existing Store when both normalized Chain and normalized Branch match. Case or surrounding-space differences must not create another Store. | Integrity | `FR-HIS-STR-03` |
+| `BR-HIS-STR-01` | Store Chain and Branch identity keys retain ASCII letters and digits only and convert letters to lowercase. Spaces and punctuation are removed; user-facing display text remains unchanged. | Derivation | `FR-HIS-STR-01` |
+| `BR-HIS-STR-02` | A `null`, empty, whitespace-only, or non-alphanumeric-only Branch produces the same empty normalized Branch identity. | Derivation | `FR-HIS-STR-02` |
+| `BR-HIS-STR-03` | Initial save and update must reuse one existing Store when both normalized Chain and normalized Branch match. Case, space, or punctuation differences must not create another Store. | Integrity | `FR-HIS-STR-03` |
 | `BR-HIS-STR-04` | Store Branch identity is independent of the duplicate-Receipt key. Duplicate detection continues to ignore Branch. | Constraint | `FR-HIS-STR-04`, `FR-HIS-DUP-02` |
 
 ### 6.9 Monetary calculations and total comparison
@@ -341,7 +342,8 @@ duplicate hour key; `2026-08-17 11:00:00` does not.
 | `Woolworths` | `Greenlane` | `woolworths` + `greenlane` | One Store identity |
 | ` woolworths ` | ` greenlane ` | `woolworths` + `greenlane` | Reuse the same Store |
 | `WOOLWORTHS` | `GREENLANE` | `woolworths` + `greenlane` | Reuse the same Store |
-| `Woolworths` | `null`, empty, or whitespace-only | `woolworths` + empty | All three Branch forms reuse the same Store |
+| `PAK'nSAVE` | `Mt. Eden 2` | `paknsave` + `mteden2` | Spaces and punctuation do not affect identity |
+| `Woolworths` | `null`, empty, whitespace-only, or punctuation-only | `woolworths` + empty | All empty normalized Branch forms reuse the same Store |
 | `Woolworths` | `Greenlane` versus `Mt Eden` | Different normalized Branch values | Different Stores |
 
 ## 8. Calculation examples
@@ -442,7 +444,7 @@ and implementation are finalised.
 | ID | Decision needed | Why it matters | Recommended starting decision | Status |
 | --- | --- | --- | --- | --- |
 | `OBR-HIS-01` | Define a deterministic secondary order when two Receipts have the same purchase date and time. | Paging can otherwise show unstable order or repeat/skip records. | Display the Receipt saved earlier first (FIFO), using stable saved-order persistence. | Approved |
-| `OBR-HIS-02` | Define whether Store Chain and Branch identity ignore leading/trailing spaces and letter case, and whether empty and `null` Branch are equivalent. | Store reuse and unused-Store cleanup require one stable identity. | Normalize both with trim/lower; treat `null`, empty, and whitespace-only Branch as equivalent. | Approved |
+| `OBR-HIS-02` | Define whether Store Chain and Branch identity ignore case, spaces, and punctuation, and whether empty and `null` Branch are equivalent. | Store reuse and unused-Store cleanup require one stable identity. | Retain ASCII letters and digits only, lowercase letters, and treat `null`, empty, whitespace-only, and non-alphanumeric-only Branch as equivalent. | Approved |
 | `OBR-HIS-03` | Decide whether item discounts or receipt-level discounts may make a subtotal or final payable total negative. | The current formula permits negative results when discounts exceed value. | Reject initial save and update when any item final subtotal or Receipt final payable total is negative. | Approved |
 | `OBR-HIS-04` | Define recovery if database deletion succeeds but owned-image deletion fails. | Database transactions and file deletion cannot form one atomic transaction. | Keep the Receipt deleted, report deletion success, and defer orphaned-image handling to a future maintenance cleanup feature. | Approved |
 | `OBR-HIS-05` | Define refresh behaviour when external data changes make the retained current page greater than the new total pages. | The existing rule covers deletion initiated in History but not another data change before refresh. | Load the new final valid page: `min(previousPage, newTotalPages)`. | Approved |
@@ -454,9 +456,10 @@ cannot be reconstructed for existing records. Implementation therefore needs a
 Room migration with a deterministic legacy backfill rule, while all Receipts
 saved after migration can retain exact FIFO order.
 
-Approved `OBR-HIS-02` means `Greenlane`, ` greenlane `, and `GREENLANE`
+Approved `OBR-HIS-02` means `Greenlane`, ` green lane `, and `GREEN-LANE`
 identify the same Branch when their normalized Chain also matches. A missing,
-empty, or whitespace-only Branch likewise shares one empty Branch identity.
+empty, whitespace-only, or punctuation-only Branch likewise shares one empty
+Branch identity.
 
 Example for approved `OBR-HIS-05`: with 31 Receipts and page size 15, page 3 exists and
 contains one record. If that record is deleted by another data-changing flow

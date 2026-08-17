@@ -8,11 +8,11 @@
 | Feature name | History Completion v1 |
 | Document ID | `HIS-FRS-02` |
 | Repository source | `02-functional-requirements.md` |
-| Version | 0.9 |
+| Version | 1.0 |
 | Status | Approved for use-case analysis |
 | Date | 2026-08-17 |
 | Author | Victor Shih — Systems Analyst |
-| Approved scope | `HIS-SCP-01`, version 0.8 |
+| Approved scope | `HIS-SCP-01`, version 0.9 |
 | Code baseline | `main` at `5fd0fbd` |
 
 ### 1.1 Revision history
@@ -28,6 +28,7 @@
 | 0.7 | 2026-08-17 | Victor Shih | Defined normalized Chain-and-Branch Store identity, including empty and `null` Branch equivalence |
 | 0.8 | 2026-08-17 | Victor Shih | Renamed duplicate confirmation actions to Discard/Add and defined the Discard outcome |
 | 0.9 | 2026-08-17 | Victor Shih | Finalised duplicate dialog title and message as `Possible duplicate receipt` / `Add anyway?` |
+| 1.0 | 2026-08-17 | Victor Shih | Revised Store and duplicate Chain/Branch normalization to retain ASCII letters and digits only |
 
 ## 2. Purpose
 
@@ -186,7 +187,7 @@ rather than silently resolved.
 
 | ID | Requirement | Priority | Verification summary |
 | --- | --- | --- | --- |
-| `FR-HIS-DUP-01` | For duplicate comparison, the system shall normalize Chain by applying `trim` and lowercase conversion; display casing need not be replaced by the comparison value. | Must | Compare Chains with case and surrounding-space differences and verify they match while display text remains approved. |
+| `FR-HIS-DUP-01` | For duplicate comparison, the system shall normalize Chain by removing every character except ASCII letters and digits and converting letters to lowercase; display text shall not be replaced by the comparison value. | Must | Compare Chains with case, space, and punctuation differences, such as `PAK'nSAVE` and `PAKNSAVE`, and verify they match while display text remains approved. |
 | `FR-HIS-DUP-02` | Before inserting a new Receipt, the system shall check whether an existing Receipt has the same normalized Chain, purchase calendar date and hour, and final payable total in cents; minutes, seconds, and fractional seconds shall not participate in the duplicate key. | Must | Test each key component and verify two timestamps within the same hour match while adjacent hours do not. |
 | `FR-HIS-DUP-03` | If no matching Receipt exists, the system shall continue the initial save without displaying a duplicate confirmation. | Must | Save a unique Receipt and verify one insertion and no prompt. |
 | `FR-HIS-DUP-04` | If a matching Receipt exists, the system shall not insert immediately and shall display title `Possible duplicate receipt`, message `Add anyway?`, and Discard/Add actions. | Must | Attempt a matching save and verify the exact title, message, actions, and zero insertion before a decision. |
@@ -207,8 +208,8 @@ rather than silently resolved.
 
 | ID | Requirement | Priority | Verification summary |
 | --- | --- | --- | --- |
-| `FR-HIS-STR-01` | For Store identity comparison, the system shall normalize both Chain and Branch by applying `trim` and lowercase conversion. | Must | Compare Store inputs that differ only by case or surrounding whitespace and verify the same identity key. |
-| `FR-HIS-STR-02` | A `null`, empty, or whitespace-only Branch shall normalize to the same empty Branch identity value. | Must | Save and update using all three Branch representations and verify one Store identity. |
+| `FR-HIS-STR-01` | For Store identity comparison, the system shall normalize both Chain and Branch by removing every character except ASCII letters and digits and converting letters to lowercase. | Must | Compare Store inputs that differ by case, spaces, or punctuation and verify the same identity key. |
+| `FR-HIS-STR-02` | A `null`, empty, whitespace-only, or non-alphanumeric-only Branch shall normalize to the same empty Branch identity value. | Must | Save and update using each Branch representation and verify one Store identity. |
 | `FR-HIS-STR-03` | Initial save and update shall reuse an existing Store whose normalized Chain and Branch identity match instead of creating another Store. | Must | Save/update matching variants such as `Greenlane`, ` greenlane `, and `GREENLANE`, then verify one Store row is referenced. |
 | `FR-HIS-STR-04` | Branch normalization for Store identity shall not add Branch to the duplicate-Receipt key, which remains normalized Chain, purchase date/hour, and final payable total. | Must | Use different Branch values with the same duplicate key and verify duplicate detection still occurs. |
 
@@ -287,17 +288,17 @@ are no longer open questions.
 | `OQR-HIS-09` | Chain is required and invalid when `null`, empty, or whitespace-only; invalid Chain uses red input-area feedback, while Branch remains optional. | Added `FR-HIS-EDT-24`; exact presentation will be defined in `05-ui-specification.md`. |
 | `OQR-HIS-10` | A potential duplicate uses normalized Chain, purchase calendar date/hour, and final payable total; minutes and seconds are ignored, Add inserts, and Discard performs no insertion while retaining Review. | Added `FR-HIS-DUP-01` through `FR-HIS-DUP-07`. |
 | `OQR-HIS-11` | Refresh falls back to the new final valid page when the retained page no longer exists. | Added `FR-HIS-STA-12`. |
-| `OQR-HIS-12` | Chain comparison applies `trim` and lowercase normalization without requiring lowercase display text. | Added `FR-HIS-DUP-01`. |
+| `OQR-HIS-12` | Chain comparison retains ASCII letters and digits only and lowercases letters without changing display text. | Added `FR-HIS-DUP-01`. |
 | `OQR-HIS-13` | History retains its current `yyyy-MM-dd HH:mm` timestamp presentation, while timestamps at second precision remain stored and control ordering. | Revised `FR-HIS-BRW-05` and `FR-HIS-BRW-10`. |
 | `OQR-HIS-14` | Parser-recognised receipt purchase date/time is preferred; when absent, capture-time local `LocalDateTime.now()` supplies the fallback. | Added `FR-HIS-TIM-01`, `FR-HIS-TIM-02`, and `FR-HIS-TIM-04`. |
 | `OQR-HIS-15` | Scanner Receipt Review allows the user to modify purchase date and time before initial save. | Added `FR-HIS-TIM-03`. |
-| `OQR-HIS-16` | Store identity uses trimmed, lowercase Chain and Branch; `null`, empty, and whitespace-only Branch are equivalent. | Added `FR-HIS-STR-01` through `FR-HIS-STR-04`. |
+| `OQR-HIS-16` | Store identity uses lowercase ASCII-alphanumeric-only Chain and Branch keys; `null`, empty, whitespace-only, and non-alphanumeric-only Branch are equivalent. | Added `FR-HIS-STR-01` through `FR-HIS-STR-04`. |
 
 ## 10. Requirements approval checklist
 
 The document can move from Draft to Approved when:
 
-- all requirements are necessary, testable, and consistent with Scope v0.8;
+- all requirements are necessary, testable, and consistent with Scope v0.9;
 - resolved decisions `OQR-HIS-01` through `OQR-HIS-16` are reflected in the
   requirements, use cases, business rules, UI specification, and tests;
 - no requirement silently introduces an excluded capability;

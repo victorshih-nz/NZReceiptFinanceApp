@@ -8,16 +8,16 @@
 | Feature name | History Completion v1 |
 | Document ID | `HIS-IMP-07` |
 | Repository source | `07-implementation-plan.md` |
-| Version | 0.1 |
+| Version | 0.2 |
 | Status | Draft for technical review |
 | Date | 2026-08-17 |
 | Author | Victor Shih — Systems Analyst |
-| Source scope | `HIS-SCP-01`, version 0.8 |
-| Source requirements | `HIS-FRS-02`, version 0.9 |
-| Source use cases | `HIS-UCS-03`, version 0.8 |
-| Source business rules | `HIS-BRS-04`, version 0.7 |
-| Source UI specification | `HIS-UIS-05`, version 0.4 |
-| Source acceptance tests | `HIS-ATS-06`, version 0.1 |
+| Source scope | `HIS-SCP-01`, version 0.9 |
+| Source requirements | `HIS-FRS-02`, version 1.0 |
+| Source use cases | `HIS-UCS-03`, version 0.9 |
+| Source business rules | `HIS-BRS-04`, version 0.8 |
+| Source UI specification | `HIS-UIS-05`, version 0.5 |
+| Source acceptance tests | `HIS-ATS-06`, version 0.2 |
 | Code baseline | `main` at `5fd0fbd` |
 
 ### 1.1 Revision history
@@ -25,6 +25,7 @@
 | Version | Date | Author | Change |
 | --- | --- | --- | --- |
 | 0.1 | 2026-08-17 | Victor Shih | Initial phased implementation plan based on the approved History analysis and current Java/Room implementation |
+| 0.2 | 2026-08-17 | Victor Shih | Moved normalization into `Store` and revised normalized keys to retain ASCII letters and digits only |
 
 ## 2. Purpose
 
@@ -107,7 +108,7 @@ classes.
 | --- | --- | --- |
 | Page items and metadata | `PageResult<T>` domain model | One return value prevents list/count/page state from becoming separated. |
 | Receipt validation | `ReceiptValidator` domain service | Initial save and update apply the same rules without calling Scanner UI code. |
-| Store and duplicate normalization | `ReceiptIdentity` domain helper/value policy | One implementation of trim, lowercase, and empty Branch equivalence. |
+| Store and duplicate normalization | Normalized accessors on the `Store` domain model | One compact implementation that retains ASCII letters and digits only, lowercases letters, and preserves empty Branch equivalence. |
 | Duplicate decision | `CheckDuplicateReceiptUseCase` | Presentation asks one business question; Room details stay hidden. |
 | Saved update | `UpdateReceiptUseCase` | Keeps same-ID update validation and repository call outside the Fragment. |
 | History state | `HistoryUiState` | One immutable snapshot for selected mode, both paging states, content, and operation status. |
@@ -159,8 +160,8 @@ The recommended migration adds explicit persistence needed by approved rules:
 
 | Table | New column | Purpose |
 | --- | --- | --- |
-| `stores` | `normalized_chain TEXT NOT NULL` | Trimmed/lowercase Chain identity while retaining display `chain_name`. |
-| `stores` | `normalized_branch TEXT NOT NULL` | Trimmed/lowercase Branch identity; missing Branch becomes empty string. |
+| `stores` | `normalized_chain TEXT NOT NULL` | Lowercase ASCII-alphanumeric-only Chain identity while retaining display `chain_name`. |
+| `stores` | `normalized_branch TEXT NOT NULL` | Lowercase ASCII-alphanumeric-only Branch identity; missing or non-alphanumeric-only Branch becomes empty string. |
 | `receipts` | `saved_sequence INTEGER NOT NULL` | Stable FIFO secondary ordering for equal purchase timestamps. |
 
 The normalized Store columns receive one unique composite index. The old raw
@@ -244,7 +245,8 @@ flowchart TD
 **Primary work:**
 
 - add immutable `PageResult<T>`;
-- add `ReceiptIdentity` normalization for Chain and Branch;
+- add normalized Chain and Branch accessors to `Store`, retaining ASCII letters
+  and digits only and lowercasing with `Locale.ROOT`;
 - add reusable `ReceiptValidator` covering required Chain, optional Branch,
   item validity, and non-negative totals;
 - normalize all new/edited timestamps with `withNano(0)`;
@@ -256,6 +258,7 @@ flowchart TD
 
 **Expected files:**
 
+- `Store.java` and `StoreTest.java` for normalized identity values;
 - new domain model/service/use-case files under `domain/`;
 - `IReceiptRepository.java`;
 - existing paging/save tests and repository fakes.
@@ -263,7 +266,7 @@ flowchart TD
 **Focused tests:**
 
 - page mathematics and invalid boundaries;
-- Chain/Branch trim/lower normalization and empty equivalence;
+- Chain/Branch ASCII-alphanumeric-only lowercase normalization and empty equivalence;
 - valid/invalid Receipt and item boundaries;
 - negative item and Receipt totals;
 - duplicate date/hour boundary and total comparison;
@@ -563,7 +566,7 @@ break Scanner, OCR, Parser, category, or existing data.
 
 | Layer | Files / areas | Main change |
 | --- | --- | --- |
-| Domain | `IReceiptRepository`, current paging/save/delete use cases, `ParsedReceipt` | Page contract, validation, duplicate/update operations, timestamp output. |
+| Domain | `Store`, `IReceiptRepository`, current paging/save/delete use cases, `ParsedReceipt` | Normalized Store accessors, page contract, validation, duplicate/update operations, timestamp output. |
 | Data | `AppDatabase`, `ReceiptDao`, `ReceiptRepositoryImpl`, `StoreEntity`, `ReceiptEntity`, Parsers | Migration, normalized identity, stable order, count/page queries, update, duplicate candidates, parsed time. |
 | DI | `AppContainer`, `ViewModelFactory` | Construct new use cases/ViewModels and inject `Clock`/executor dependencies. |
 | Presentation | History, Detail, Review Fragments/ViewModels/adapters | Unified state, effects, controls, dialogs, and navigation. |
@@ -578,7 +581,6 @@ reason to exist.
 | Proposed file | Responsibility |
 | --- | --- |
 | `domain/model/PageResult.java` | Immutable page content and metadata. |
-| `domain/logic/ReceiptIdentity.java` | Store and duplicate normalization rules. |
 | `domain/logic/ReceiptValidator.java` | Shared initial-save/update validation. |
 | `domain/usecase/CheckDuplicateReceiptUseCase.java` | Duplicate business decision before insert. |
 | `domain/usecase/UpdateReceiptUseCase.java` | Atomic same-ID update boundary. |

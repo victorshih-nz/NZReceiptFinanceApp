@@ -8,11 +8,11 @@
 | Feature name | History Completion v1 |
 | Document ID | `HIS-UCS-03` |
 | Repository source | `03-use-cases.md` |
-| Version | 0.8 |
+| Version | 0.9 |
 | Status | Draft for review |
 | Date | 2026-08-17 |
 | Author | Victor Shih — Systems Analyst |
-| Approved requirements | `HIS-FRS-02`, version 0.9 |
+| Approved requirements | `HIS-FRS-02`, version 1.0 |
 | Code baseline | `main` at `5fd0fbd` |
 
 ### 1.1 Revision history
@@ -27,6 +27,7 @@
 | 0.6 | 2026-08-17 | Victor Shih | Added normalized Chain-and-Branch Store identity and reuse behaviour |
 | 0.7 | 2026-08-17 | Victor Shih | Renamed duplicate confirmation actions to Discard/Add and aligned their outcomes |
 | 0.8 | 2026-08-17 | Victor Shih | Finalised duplicate dialog title and message as `Possible duplicate receipt` / `Add anyway?` |
+| 0.9 | 2026-08-17 | Victor Shih | Applied ASCII-alphanumeric-only normalization to Store identity and duplicate comparison flows |
 
 ## 2. Purpose
 
@@ -518,10 +519,11 @@ receipt and preserves the user's editable values for correction or retry.
     Item Discounts, and category references under the original Receipt ID.
 13. A removed item and its discounts are deleted; a newly added item begins
     with no discounts.
-14. If Chain or Branch changed, the system normalizes both identity values with
-    `trim` and lowercase comparison, reuses a matching Store, and removes the
-    previous Store only when no Receipt still references it. A `null`, empty,
-    or whitespace-only Branch has the same empty identity.
+14. If Chain or Branch changed, the system normalizes both identity values by
+    retaining ASCII letters and digits only and lowercasing letters, reuses a
+    matching Store, and removes the previous Store only when no Receipt still
+    references it. A `null`, empty, whitespace-only, or non-alphanumeric-only
+    Branch has the same empty identity.
 15. The system produces one update-success effect.
 16. The system returns to Receipt Detail and displays the updated receipt.
 
@@ -620,7 +622,8 @@ database change.
 3. The user may modify the purchase date, purchase time, or both.
 4. The user selects Confirm & save.
 5. The system normalizes the final reviewed timestamp to second precision and
-   normalizes Chain using `trim` and lowercase conversion.
+   normalizes Chain by retaining ASCII letters and digits only and lowercasing
+   letters.
 6. Away from the main UI thread, the system checks for an existing Receipt with
    the same normalized Chain, purchase calendar date/hour, and final payable
    total in cents. Minutes and seconds are ignored for this comparison.

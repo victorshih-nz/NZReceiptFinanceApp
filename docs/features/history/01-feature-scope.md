@@ -8,7 +8,7 @@
 | Feature name | History Completion v1 |
 | Document ID | `HIS-SCP-01` |
 | Repository source | `01-feature-scope.md` |
-| Version | 0.8 |
+| Version | 0.9 |
 | Status | Approved for requirements analysis |
 | Date | 2026-08-17 |
 | Author | Victor Shih — Systems Analyst |
@@ -27,6 +27,7 @@
 | 0.6 | 2026-08-17 | Victor Shih | Defined normalized Chain-and-Branch Store identity and empty-Branch equivalence |
 | 0.7 | 2026-08-17 | Victor Shih | Renamed duplicate confirmation actions to Discard/Add and defined Discard as no insertion with Review retained |
 | 0.8 | 2026-08-17 | Victor Shih | Finalised duplicate dialog title and message as `Possible duplicate receipt` / `Add anyway?` |
+| 0.9 | 2026-08-17 | Victor Shih | Revised Chain and Branch comparison keys to retain ASCII letters and digits only, ignoring spaces and punctuation |
 
 ## 2. Purpose
 
@@ -173,9 +174,10 @@ History Completion v1 includes the following capabilities.
 - allow items to be added to or removed from the saved receipt;
 - apply the same receipt and item validation rules used before an initial save;
 - preserve receipt identity and update the aggregate in one transaction;
-- reuse one Store when trimmed, lowercase Chain and Branch identity values
-  match; treat `null`, empty, and whitespace-only Branch as the same empty
-  identity value;
+- reuse one Store when normalized Chain and Branch identity values match;
+  normalization retains ASCII letters and digits only, converts letters to
+  lowercase, and treats `null`, empty, whitespace-only, and
+  non-alphanumeric-only Branch as the same empty identity value;
 - keep raw OCR text, recognised printed total, and receipt image read-only;
 - return to the updated Receipt Detail after a successful update;
 - show accurate update success or failure feedback.
@@ -184,7 +186,8 @@ History Completion v1 includes the following capabilities.
 
 - before inserting a new Receipt, search for an existing Receipt with the same
   normalized Chain, purchase date and hour, and final payable total;
-- normalize Chain for comparison using `trim` followed by lowercase conversion;
+- normalize Chain for comparison by removing every character except ASCII
+  letters and digits, then converting letters to lowercase;
 - use a purchase date/time parsed from the receipt as the preferred timestamp;
 - when the Parser cannot recognise a purchase time, use the capture-time local
   `LocalDateTime.now()` value as the fallback;
@@ -409,11 +412,11 @@ Must-priority requirements are approved.
 | `OSD-HIS-13` | Chain is required for initial save and update; `null`, empty, or whitespace-only Chain is invalid and the Chain input area is highlighted in red. Branch remains optional. |
 | `OSD-HIS-14` | Before initial save, normalized Chain, purchase calendar date and hour, and final payable total identify a potential duplicate; minutes, seconds, and fractional seconds are ignored. A match displays `Possible duplicate receipt` / `Add anyway?`; Add inserts, while Discard performs no insertion and retains Review. |
 | `OSD-HIS-15` | If Refresh reduces the available pages below the retained current page, the system automatically loads the new final valid page. |
-| `OSD-HIS-16` | Chain comparison uses `trim` and lowercase normalization while user-facing display text may retain its approved presentation format. |
+| `OSD-HIS-16` | Chain comparison removes every character except ASCII letters and digits and converts letters to lowercase, while user-facing display text retains its approved presentation format. |
 | `OSD-HIS-17` | The Parser-recognised receipt purchase date/time is the preferred timestamp. If unavailable, the capture-time local `LocalDateTime.now()` value is used. |
 | `OSD-HIS-18` | Scanner Receipt Review displays and allows editing of both purchase date and purchase time before initial save. |
 | `OSD-HIS-19` | History keeps its current purchase timestamp presentation through minutes; the display does not control the greater precision used for sorting. |
-| `OSD-HIS-20` | Store identity compares `lowercase(trim(Chain))` and `lowercase(trim(Branch))`; `null`, empty, and whitespace-only Branch are equivalent, so Branch casing and surrounding spaces do not create another Store. |
+| `OSD-HIS-20` | Store identity compares lowercase ASCII-alphanumeric-only Chain and Branch keys. Spaces and punctuation are removed; `null`, empty, whitespace-only, and non-alphanumeric-only Branch values are equivalent. |
 
 ## 17. Approval
 

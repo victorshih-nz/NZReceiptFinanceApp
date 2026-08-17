@@ -8,14 +8,14 @@
 | Feature name | History Completion v1 |
 | Document ID | `HIS-UIS-05` |
 | Repository source | `05-ui-specification.md` |
-| Version | 0.4 |
+| Version | 0.5 |
 | Status | Draft for review |
 | Date | 2026-08-17 |
 | Author | Victor Shih — Systems Analyst |
-| Source scope | `HIS-SCP-01`, version 0.8 |
-| Source requirements | `HIS-FRS-02`, version 0.9 |
-| Source use cases | `HIS-UCS-03`, version 0.8 |
-| Source business rules | `HIS-BRS-04`, version 0.7 |
+| Source scope | `HIS-SCP-01`, version 0.9 |
+| Source requirements | `HIS-FRS-02`, version 1.0 |
+| Source use cases | `HIS-UCS-03`, version 0.9 |
+| Source business rules | `HIS-BRS-04`, version 0.8 |
 | Code baseline | `main` at `5fd0fbd` |
 
 ### 1.1 Revision history
@@ -26,6 +26,7 @@
 | 0.2 | 2026-08-17 | Victor Shih | Approved direct-page Dropdown, Snackbar effects, Review second editing, and blank Branch presentation; revised duplicate-dialog copy and retained timestamp-source helper and `Del` semantics for clarification |
 | 0.3 | 2026-08-17 | Victor Shih | Removed timestamp-source helper and approved Discard/Add duplicate actions; Discard performs no insertion and retains the Review draft |
 | 0.4 | 2026-08-17 | Victor Shih | Finalised duplicate dialog title `Possible duplicate receipt` and message `Add anyway?` |
+| 0.5 | 2026-08-17 | Victor Shih | Aligned comparison behaviour with ASCII-alphanumeric-only Chain and Branch normalization |
 
 ## 2. Purpose
 
@@ -403,7 +404,8 @@ must scroll rather than allowing bottom actions to move off-screen.
 #### Chain
 
 - Label: `Supermarket` with required indication.
-- The user's visible casing remains unchanged while comparison uses trim/lower.
+- The user's visible value remains unchanged while the comparison key removes
+  every character except ASCII letters and digits and lowercases letters.
 - `null`, empty, and whitespace-only values are invalid.
 - On validation failure:
   - show the input/container using theme error red;
@@ -415,8 +417,8 @@ must scroll rather than allowing bottom actions to move off-screen.
 
 - Label: `Branch (optional)`.
 - Empty Branch is valid and has no required-field error.
-- Store identity uses trimmed lowercase Branch; empty, whitespace-only, and
-  `null` share one empty identity.
+- Store identity retains ASCII letters and digits only and lowercases letters;
+  empty, whitespace-only, punctuation-only, and `null` share one empty identity.
 - Branch is not part of the duplicate-Receipt key.
 
 ### 8.3 Purchase date and time
@@ -469,7 +471,7 @@ Duplicate lookup begins only after all blocking validation passes.
 The comparison key is:
 
 ```text
-lowercase(trim(Chain))
+lowercase(ASCII letters and digits from Chain)
 + purchase calendar date/hour
 + calculated final payable total in cents
 ```
