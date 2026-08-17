@@ -1,3 +1,17 @@
+name: Android Instrumented Tests
+
+on:
+  push:
+    paths:
+      - "app/src/main/java/com/example/nzreceiptapp/data/local/**"
+      - "app/src/androidTest/**"
+      - "app/schemas/**"
+      - "app/build.gradle"
+      - ".github/workflows/android-instrumented-tests.yml"
+  pull_request:
+    paths:
+      - "app/src/main/java/com/example/nzreceiptapp/data/local/**"
+      - "app/src/androidTest/**"
       - "app/schemas/**"
       - "app/build.gradle"
       - ".github/workflows/android-instrumented-tests.yml"
