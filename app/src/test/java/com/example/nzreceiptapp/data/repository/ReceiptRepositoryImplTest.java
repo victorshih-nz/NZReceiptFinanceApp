@@ -8,6 +8,8 @@ import static org.mockito.Mockito.when;
 import com.example.nzreceiptapp.data.local.dao.ReceiptDao;
 import com.example.nzreceiptapp.data.local.entity.ReceiptEntity;
 import com.example.nzreceiptapp.data.local.entity.ReceiptWithItems;
+import com.example.nzreceiptapp.data.local.entity.StoreEntity;
+import com.example.nzreceiptapp.domain.model.PageResult;
 import com.example.nzreceiptapp.domain.model.Receipt;
 import com.example.nzreceiptapp.domain.model.ReceiptItem;
 import com.example.nzreceiptapp.domain.model.Store;
@@ -65,5 +67,28 @@ public class ReceiptRepositoryImplTest {
 
         verify(receiptDao).deleteReceiptAndUnusedStore("receipt");
         verify(imageStore).delete("file:///receipt.jpg");
+    }
+
+    @Test
+    public void getReceiptsPage_mapsRowsAndMetadata() {
+        ReceiptWithItems stored = new ReceiptWithItems();
+        stored.receipt = new ReceiptEntity(
+                "receipt", "store", LocalDateTime.of(2026, 8, 17, 10, 0),
+                0, false);
+        stored.store = new StoreEntity("store", "Woolworths", "Albany");
+        stored.items = Collections.emptyList();
+        ReceiptDao.ReceiptPageData pageData = new ReceiptDao.ReceiptPageData(
+                Collections.singletonList(stored), 2, 31);
+        when(receiptDao.getReceiptsPage(2, 15)).thenReturn(pageData);
+
+        PageResult<Receipt> result = repository.getReceiptsPage(2, 15);
+
+        assertEquals(1, result.getItems().size());
+        assertEquals("receipt", result.getItems().get(0).getId());
+        assertEquals(2, result.getCurrentPage());
+        assertEquals(15, result.getPageSize());
+        assertEquals(31, result.getTotalRecords());
+        assertEquals(3, result.getTotalPages());
+        verify(receiptDao).getReceiptsPage(2, 15);
     }
 }

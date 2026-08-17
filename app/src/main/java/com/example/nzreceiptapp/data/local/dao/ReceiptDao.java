@@ -33,6 +33,28 @@ public interface ReceiptDao {
     @Query("SELECT * FROM receipts ORDER BY purchase_date DESC LIMIT :limit OFFSET :offset")
     List<ReceiptWithItems> getReceiptsPaged(int limit, int offset);
 
+    @Query("SELECT COUNT(*) FROM receipts")
+    int countReceipts();
+
+    @Transaction
+    default ReceiptPageData getReceiptsPage(int requestedPage, int pageSize) {
+        if (requestedPage < 1) {
+            throw new IllegalArgumentException("requestedPage must be at least 1");
+        }
+        if (pageSize <= 0) {
+            throw new IllegalArgumentException("pageSize must be greater than 0");
+        }
+
+        int totalRecords = countReceipts();
+        int totalPages = totalRecords == 0
+                ? 1
+                : ((totalRecords - 1) / pageSize) + 1;
+        int effectivePage = Math.min(requestedPage, totalPages);
+        int offset = (effectivePage - 1) * pageSize;
+        List<ReceiptWithItems> rows = getReceiptsPaged(pageSize, offset);
+        return new ReceiptPageData(rows, effectivePage, totalRecords);
+    }
+
     @Transaction
     @Query("SELECT * FROM receipts WHERE id = :id")
     ReceiptWithItems getReceiptById(String id);
@@ -83,6 +105,32 @@ public interface ReceiptDao {
         deleteById(receiptId);
         if (storeId != null) {
             deleteStoreIfUnused(storeId);
+        }
+    }
+
+    final class ReceiptPageData {
+        private final List<ReceiptWithItems> rows;
+        private final int currentPage;
+        private final int totalRecords;
+
+        public ReceiptPageData(List<ReceiptWithItems> rows,
+                               int currentPage,
+                               int totalRecords) {
+            this.rows = rows;
+            this.currentPage = currentPage;
+            this.totalRecords = totalRecords;
+        }
+
+        public List<ReceiptWithItems> getRows() {
+            return rows;
+        }
+
+        public int getCurrentPage() {
+            return currentPage;
+        }
+
+        public int getTotalRecords() {
+            return totalRecords;
         }
     }
 }

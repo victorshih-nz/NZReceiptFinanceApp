@@ -11,6 +11,7 @@ import com.example.nzreceiptapp.data.local.entity.ReceiptWithItems;
 import com.example.nzreceiptapp.data.local.entity.StoreEntity;
 import com.example.nzreceiptapp.domain.model.Category;
 import com.example.nzreceiptapp.domain.model.ItemDiscount;
+import com.example.nzreceiptapp.domain.model.PageResult;
 import com.example.nzreceiptapp.domain.model.Receipt;
 import com.example.nzreceiptapp.domain.model.ReceiptItem;
 import com.example.nzreceiptapp.domain.model.ReceiptItemSummary;
@@ -102,7 +103,21 @@ public class ReceiptRepositoryImpl implements IReceiptRepository {
 
     @Override
     public List<Receipt> getReceiptsPaged(int limit, int offset) {
-        List<ReceiptWithItems> entities = receiptDao.getReceiptsPaged(limit, offset);
+        return mapReceipts(receiptDao.getReceiptsPaged(limit, offset));
+    }
+
+    @Override
+    public PageResult<Receipt> getReceiptsPage(int pageNumber, int pageSize) {
+        ReceiptDao.ReceiptPageData pageData =
+                receiptDao.getReceiptsPage(pageNumber, pageSize);
+        return new PageResult<>(
+                mapReceipts(pageData.getRows()),
+                pageData.getCurrentPage(),
+                pageSize,
+                pageData.getTotalRecords());
+    }
+
+    private List<Receipt> mapReceipts(List<ReceiptWithItems> entities) {
         List<Receipt> domainReceipts = new ArrayList<>();
         for (ReceiptWithItems entity : entities) {
             domainReceipts.add(mapToDomain(entity));

@@ -2,6 +2,7 @@ package com.example.nzreceiptapp.domain.repository;
 
 import com.example.nzreceiptapp.domain.model.Receipt;
 import com.example.nzreceiptapp.domain.model.ReceiptItemSummary;
+import com.example.nzreceiptapp.domain.model.PageResult;
 import java.util.List;
 
 /**
@@ -29,6 +30,11 @@ public interface IReceiptRepository {
      * @param offset 偏移量 (page * limit)
      */
     List<Receipt> getReceiptsPaged(int limit, int offset);
+
+    /**
+     * 取得包含總筆數與有效頁碼的完整發票分頁結果。
+     */
+    PageResult<Receipt> getReceiptsPage(int pageNumber, int pageSize);
 
     /**
      * 分頁獲取扁平化的所有品項清單
