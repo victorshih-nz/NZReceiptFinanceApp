@@ -70,4 +70,5 @@ jobs:
 
       - name: Stop emulator
         if: always()
-        run: "$ANDROID_HOME/platform-tools/adb" emu kill || true
+        run: >-
+          "$ANDROID_HOME/platform-tools/adb" emu kill || true
