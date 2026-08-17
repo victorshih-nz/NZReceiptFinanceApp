@@ -31,7 +31,9 @@ public interface ReceiptDao {
     void insertItemDiscounts(List<ItemDiscountEntity> discounts);
 
     @Transaction
-    @Query("SELECT * FROM receipts ORDER BY purchase_date DESC LIMIT :limit OFFSET :offset")
+    @Query("SELECT * FROM receipts "
+            + "ORDER BY purchase_date DESC, saved_sequence ASC "
+            + "LIMIT :limit OFFSET :offset")
     List<ReceiptWithItems> getReceiptsPaged(int limit, int offset);
 
     @Query("SELECT COUNT(*) FROM receipts")
@@ -63,7 +65,7 @@ public interface ReceiptDao {
     @Transaction
     @Query("SELECT * FROM receipts "
             + "WHERE purchase_date >= :hourStart AND purchase_date < :hourEnd "
-            + "ORDER BY purchase_date ASC")
+            + "ORDER BY purchase_date ASC, saved_sequence ASC")
     List<ReceiptWithItems> getReceiptsInPurchaseHour(LocalDateTime hourStart,
                                                      LocalDateTime hourEnd);
 
@@ -72,7 +74,8 @@ public interface ReceiptDao {
            "FROM receipt_items ri " +
            "JOIN receipts r ON ri.receipt_id = r.id " +
            "JOIN stores s ON r.store_id = s.id " +
-           "ORDER BY r.purchase_date DESC LIMIT :limit OFFSET :offset")
+           "ORDER BY r.purchase_date DESC, r.saved_sequence ASC, ri.rowid ASC "
+           + "LIMIT :limit OFFSET :offset")
     List<ReceiptItemRow> getAllItemsPaged(int limit, int offset);
 
     @Query("SELECT COUNT(*) FROM receipt_items")
