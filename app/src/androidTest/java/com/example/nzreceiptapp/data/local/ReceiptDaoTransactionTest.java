@@ -12,6 +12,7 @@ import com.example.nzreceiptapp.data.local.dao.ReceiptDao;
 import com.example.nzreceiptapp.data.local.entity.ItemDiscountEntity;
 import com.example.nzreceiptapp.data.local.entity.ReceiptEntity;
 import com.example.nzreceiptapp.data.local.entity.ReceiptItemEntity;
+import com.example.nzreceiptapp.data.local.entity.ReceiptItemRow;
 import com.example.nzreceiptapp.data.local.entity.ReceiptWithItems;
 import com.example.nzreceiptapp.data.local.entity.StoreEntity;
 import com.example.nzreceiptapp.domain.model.ItemDiscount;
@@ -22,7 +23,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 
 @RunWith(AndroidJUnit4.class)
 public class ReceiptDaoTransactionTest {
@@ -103,6 +106,73 @@ public class ReceiptDaoTransactionTest {
         assertNull(receiptDao.findStore("paknsave", "albany"));
     }
 
+    @Test
+    public void getReceiptsPage_ordersByFullTimestampThenSavedFifo() {
+        saveReceipt("old", "store-old", "Woolworths", "Albany",
+                LocalDateTime.of(2026, 8, 17, 10, 0, 0), "old-item");
+        saveReceipt("tie-first", "store-tie-first", "Woolworths", "Albany",
+                LocalDateTime.of(2026, 8, 17, 12, 0, 0), "tie-first-item");
+        saveReceipt("tie-second", "store-tie-second", "Woolworths", "Albany",
+                LocalDateTime.of(2026, 8, 17, 12, 0, 0), "tie-second-item");
+        saveReceipt("newest", "store-newest", "Woolworths", "Albany",
+                LocalDateTime.of(2026, 8, 17, 12, 0, 1), "newest-item");
+
+        ReceiptDao.PageData<ReceiptWithItems> firstPage =
+                receiptDao.getReceiptsPage(1, 2);
+        ReceiptDao.PageData<ReceiptWithItems> secondPage =
+                receiptDao.getReceiptsPage(2, 2);
+        ReceiptDao.PageData<ReceiptWithItems> clampedPage =
+                receiptDao.getReceiptsPage(99, 2);
+
+        assertEquals(4, firstPage.getTotalRecords());
+        assertEquals("newest", firstPage.getRows().get(0).receipt.id);
+        assertEquals("tie-first", firstPage.getRows().get(1).receipt.id);
+        assertEquals("tie-second", secondPage.getRows().get(0).receipt.id);
+        assertEquals("old", secondPage.getRows().get(1).receipt.id);
+        assertEquals(2, clampedPage.getCurrentPage());
+        assertEquals("tie-second", clampedPage.getRows().get(0).receipt.id);
+    }
+
+    @Test
+    public void getAllItemsPage_ordersReceiptsThenKeepsItemInsertionOrder() {
+        saveReceipt("older", "store-older", "Woolworths", "Albany",
+                LocalDateTime.of(2026, 8, 17, 10, 0, 0), "older-item");
+        saveReceipt("newer", "store-newer", "Woolworths", "Albany",
+                LocalDateTime.of(2026, 8, 17, 11, 0, 0),
+                "newer-first", "newer-second");
+
+        ReceiptDao.PageData<ReceiptItemRow> firstPage =
+                receiptDao.getAllItemsPage(1, 2);
+        ReceiptDao.PageData<ReceiptItemRow> secondPage =
+                receiptDao.getAllItemsPage(2, 2);
+
+        assertEquals(3, firstPage.getTotalRecords());
+        assertEquals("newer-first", firstPage.getRows().get(0).item.id);
+        assertEquals("newer-second", firstPage.getRows().get(1).item.id);
+        assertEquals("older-item", secondPage.getRows().get(0).item.id);
+    }
+
+    @Test
+    public void getReceiptsInPurchaseHour_includesStartAndExcludesNextHour() {
+        saveReceipt("at-start", "store-start", "Woolworths", "Albany",
+                LocalDateTime.of(2026, 8, 17, 10, 0, 0), "start-item");
+        saveReceipt("at-end-minus-second", "store-end-minus", "Woolworths", "CBD",
+                LocalDateTime.of(2026, 8, 17, 10, 59, 59), "end-minus-item");
+        saveReceipt("at-next-hour", "store-next", "Woolworths", "Greenlane",
+                LocalDateTime.of(2026, 8, 17, 11, 0, 0), "next-item");
+        saveReceipt("other-chain", "store-other", "PAK'nSAVE", "Albany",
+                LocalDateTime.of(2026, 8, 17, 10, 30, 0), "other-item");
+
+        List<ReceiptWithItems> matches = receiptDao.getReceiptsInPurchaseHour(
+                "woolworths",
+                LocalDateTime.of(2026, 8, 17, 10, 0, 0),
+                LocalDateTime.of(2026, 8, 17, 11, 0, 0));
+
+        assertEquals(2, matches.size());
+        assertEquals("at-start", matches.get(0).receipt.id);
+        assertEquals("at-end-minus-second", matches.get(1).receipt.id);
+    }
+
     private void saveOriginalReceipt() {
         StoreEntity store = new StoreEntity(
                 "old-store", "Woolworths", "Albany");
@@ -121,5 +191,26 @@ public class ReceiptDaoTransactionTest {
                 "receipt-1", storeId,
                 LocalDateTime.of(2026, 8, 17, 10, 30),
                 0, false, "OCR", "image.jpg", 399L);
+    }
+
+    private void saveReceipt(String receiptId,
+                             String storeId,
+                             String chain,
+                             String branch,
+                             LocalDateTime purchaseDate,
+                             String... itemIds) {
+        List<ReceiptItemEntity> items = new ArrayList<>();
+        for (String itemId : itemIds) {
+            items.add(new ReceiptItemEntity(
+                    itemId, receiptId, itemId, itemId,
+                    1, "ea", 100, null, false));
+        }
+        receiptDao.saveFullReceipt(
+                new StoreEntity(storeId, chain, branch),
+                new ReceiptEntity(
+                        receiptId, storeId, purchaseDate,
+                        0, false, "OCR", "image.jpg", 100L),
+                items,
+                Collections.emptyList());
     }
 }
