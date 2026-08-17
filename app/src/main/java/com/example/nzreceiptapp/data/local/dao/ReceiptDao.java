@@ -37,7 +37,7 @@ public interface ReceiptDao {
     int countReceipts();
 
     @Transaction
-    default ReceiptPageData getReceiptsPage(int requestedPage, int pageSize) {
+    default PageData<ReceiptWithItems> getReceiptsPage(int requestedPage, int pageSize) {
         if (requestedPage < 1) {
             throw new IllegalArgumentException("requestedPage must be at least 1");
         }
@@ -52,7 +52,7 @@ public interface ReceiptDao {
         int effectivePage = Math.min(requestedPage, totalPages);
         int offset = (effectivePage - 1) * pageSize;
         List<ReceiptWithItems> rows = getReceiptsPaged(pageSize, offset);
-        return new ReceiptPageData(rows, effectivePage, totalRecords);
+        return new PageData<>(rows, effectivePage, totalRecords);
     }
 
     @Transaction
@@ -66,6 +66,28 @@ public interface ReceiptDao {
            "JOIN stores s ON r.store_id = s.id " +
            "ORDER BY r.purchase_date DESC LIMIT :limit OFFSET :offset")
     List<ReceiptItemRow> getAllItemsPaged(int limit, int offset);
+
+    @Query("SELECT COUNT(*) FROM receipt_items")
+    int countReceiptItems();
+
+    @Transaction
+    default PageData<ReceiptItemRow> getAllItemsPage(int requestedPage, int pageSize) {
+        if (requestedPage < 1) {
+            throw new IllegalArgumentException("requestedPage must be at least 1");
+        }
+        if (pageSize <= 0) {
+            throw new IllegalArgumentException("pageSize must be greater than 0");
+        }
+
+        int totalRecords = countReceiptItems();
+        int totalPages = totalRecords == 0
+                ? 1
+                : ((totalRecords - 1) / pageSize) + 1;
+        int effectivePage = Math.min(requestedPage, totalPages);
+        int offset = (effectivePage - 1) * pageSize;
+        List<ReceiptItemRow> rows = getAllItemsPaged(pageSize, offset);
+        return new PageData<>(rows, effectivePage, totalRecords);
+    }
 
     @Query("DELETE FROM receipts WHERE id = :id")
     void deleteById(String id);
@@ -108,20 +130,18 @@ public interface ReceiptDao {
         }
     }
 
-    final class ReceiptPageData {
-        private final List<ReceiptWithItems> rows;
+    final class PageData<T> {
+        private final List<T> rows;
         private final int currentPage;
         private final int totalRecords;
 
-        public ReceiptPageData(List<ReceiptWithItems> rows,
-                               int currentPage,
-                               int totalRecords) {
+        public PageData(List<T> rows, int currentPage, int totalRecords) {
             this.rows = rows;
             this.currentPage = currentPage;
             this.totalRecords = totalRecords;
         }
 
-        public List<ReceiptWithItems> getRows() {
+        public List<T> getRows() {
             return rows;
         }
 

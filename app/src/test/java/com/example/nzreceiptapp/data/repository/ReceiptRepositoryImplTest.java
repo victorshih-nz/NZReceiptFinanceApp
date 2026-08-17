@@ -7,11 +7,14 @@ import static org.mockito.Mockito.when;
 
 import com.example.nzreceiptapp.data.local.dao.ReceiptDao;
 import com.example.nzreceiptapp.data.local.entity.ReceiptEntity;
+import com.example.nzreceiptapp.data.local.entity.ReceiptItemEntity;
+import com.example.nzreceiptapp.data.local.entity.ReceiptItemRow;
 import com.example.nzreceiptapp.data.local.entity.ReceiptWithItems;
 import com.example.nzreceiptapp.data.local.entity.StoreEntity;
 import com.example.nzreceiptapp.domain.model.PageResult;
 import com.example.nzreceiptapp.domain.model.Receipt;
 import com.example.nzreceiptapp.domain.model.ReceiptItem;
+import com.example.nzreceiptapp.domain.model.ReceiptItemSummary;
 import com.example.nzreceiptapp.domain.model.Store;
 import com.example.nzreceiptapp.domain.service.IReceiptImageStore;
 
@@ -77,7 +80,7 @@ public class ReceiptRepositoryImplTest {
                 0, false);
         stored.store = new StoreEntity("store", "Woolworths", "Albany");
         stored.items = Collections.emptyList();
-        ReceiptDao.ReceiptPageData pageData = new ReceiptDao.ReceiptPageData(
+        ReceiptDao.PageData<ReceiptWithItems> pageData = new ReceiptDao.PageData<>(
                 Collections.singletonList(stored), 2, 31);
         when(receiptDao.getReceiptsPage(2, 15)).thenReturn(pageData);
 
@@ -90,5 +93,30 @@ public class ReceiptRepositoryImplTest {
         assertEquals(31, result.getTotalRecords());
         assertEquals(3, result.getTotalPages());
         verify(receiptDao).getReceiptsPage(2, 15);
+    }
+
+    @Test
+    public void getAllItemsPage_mapsRowsAndMetadata() {
+        ReceiptItemRow row = new ReceiptItemRow();
+        row.item = new ReceiptItemEntity(
+                "item", "receipt", "Milk", "Milk", 1,
+                "ea", 399, null, false);
+        row.chainName = "Woolworths";
+        row.branchName = "Albany";
+        row.purchaseDate = LocalDateTime.of(2026, 8, 17, 10, 0);
+        row.discounts = Collections.emptyList();
+        ReceiptDao.PageData<ReceiptItemRow> pageData = new ReceiptDao.PageData<>(
+                Collections.singletonList(row), 2, 61);
+        when(receiptDao.getAllItemsPage(2, 30)).thenReturn(pageData);
+
+        PageResult<ReceiptItemSummary> result = repository.getAllItemsPage(2, 30);
+
+        assertEquals(1, result.getItems().size());
+        assertEquals("item", result.getItems().get(0).getItem().getId());
+        assertEquals(2, result.getCurrentPage());
+        assertEquals(30, result.getPageSize());
+        assertEquals(61, result.getTotalRecords());
+        assertEquals(3, result.getTotalPages());
+        verify(receiptDao).getAllItemsPage(2, 30);
     }
 }

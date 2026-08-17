@@ -31,7 +31,8 @@ public class ReceiptDaoTest {
         when(receiptDao.countReceipts()).thenReturn(31);
         when(receiptDao.getReceiptsPaged(15, 15)).thenReturn(rows);
 
-        ReceiptDao.ReceiptPageData result = receiptDao.getReceiptsPage(2, 15);
+        ReceiptDao.PageData<ReceiptWithItems> result =
+                receiptDao.getReceiptsPage(2, 15);
 
         assertSame(rows, result.getRows());
         assertEquals(2, result.getCurrentPage());
@@ -47,7 +48,8 @@ public class ReceiptDaoTest {
         when(receiptDao.countReceipts()).thenReturn(16);
         when(receiptDao.getReceiptsPaged(15, 15)).thenReturn(rows);
 
-        ReceiptDao.ReceiptPageData result = receiptDao.getReceiptsPage(3, 15);
+        ReceiptDao.PageData<ReceiptWithItems> result =
+                receiptDao.getReceiptsPage(3, 15);
 
         assertSame(rows, result.getRows());
         assertEquals(2, result.getCurrentPage());
@@ -61,7 +63,8 @@ public class ReceiptDaoTest {
         when(receiptDao.getReceiptsPaged(15, 0))
                 .thenReturn(Collections.emptyList());
 
-        ReceiptDao.ReceiptPageData result = receiptDao.getReceiptsPage(1, 15);
+        ReceiptDao.PageData<ReceiptWithItems> result =
+                receiptDao.getReceiptsPage(1, 15);
 
         assertEquals(1, result.getCurrentPage());
         assertEquals(0, result.getTotalRecords());
@@ -79,5 +82,32 @@ public class ReceiptDaoTest {
     public void getReceiptsPage_rejectsNonPositivePageSize() {
         assertThrows(IllegalArgumentException.class,
                 () -> receiptDao.getReceiptsPage(1, 0));
+    }
+
+    @Test
+    public void getAllItemsPage_readsItemCountAndRequestedPage() {
+        when(receiptDao.countReceiptItems()).thenReturn(61);
+        when(receiptDao.getAllItemsPaged(30, 30))
+                .thenReturn(Collections.emptyList());
+
+        ReceiptDao.PageData<?> result = receiptDao.getAllItemsPage(2, 30);
+
+        assertEquals(2, result.getCurrentPage());
+        assertEquals(61, result.getTotalRecords());
+        verify(receiptDao).countReceiptItems();
+        verify(receiptDao).getAllItemsPaged(30, 30);
+    }
+
+    @Test
+    public void getAllItemsPage_missingRequestedPageUsesLastValidPage() {
+        when(receiptDao.countReceiptItems()).thenReturn(31);
+        when(receiptDao.getAllItemsPaged(30, 30))
+                .thenReturn(Collections.emptyList());
+
+        ReceiptDao.PageData<?> result = receiptDao.getAllItemsPage(3, 30);
+
+        assertEquals(2, result.getCurrentPage());
+        assertEquals(31, result.getTotalRecords());
+        verify(receiptDao).getAllItemsPaged(30, 30);
     }
 }

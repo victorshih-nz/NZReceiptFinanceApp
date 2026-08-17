@@ -1,9 +1,8 @@
 package com.example.nzreceiptapp.domain.usecase;
 
+import com.example.nzreceiptapp.domain.model.PageResult;
 import com.example.nzreceiptapp.domain.model.ReceiptItemSummary;
 import com.example.nzreceiptapp.domain.repository.IReceiptRepository;
-
-import java.util.List;
 
 public class GetAllItemsPagedUseCase {
     private final IReceiptRepository repository;
@@ -12,8 +11,17 @@ public class GetAllItemsPagedUseCase {
         this.repository = repository;
     }
 
-    public List<ReceiptItemSummary> execute(int page, int pageSize) {
-        int offset = page * pageSize;
-        return repository.getAllItemsPaged(pageSize, offset);
+    public PageResult<ReceiptItemSummary> execute(int page, int pageSize) {
+        if (page < 1) {
+            throw new IllegalArgumentException("page must be at least 1");
+        }
+        if (!isSupportedPageSize(pageSize)) {
+            throw new IllegalArgumentException("pageSize must be 15, 30, or 50");
+        }
+        return repository.getAllItemsPage(page, pageSize);
+    }
+
+    private boolean isSupportedPageSize(int pageSize) {
+        return pageSize == 15 || pageSize == 30 || pageSize == 50;
     }
 }

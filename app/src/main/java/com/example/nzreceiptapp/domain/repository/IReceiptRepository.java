@@ -25,21 +25,14 @@ public interface IReceiptRepository {
     Receipt getReceiptById(String id);
 
     /**
-     * 分頁獲取發票清單
-     * @param limit 每頁數量
-     * @param offset 偏移量 (page * limit)
-     */
-    List<Receipt> getReceiptsPaged(int limit, int offset);
-
-    /**
      * 取得包含總筆數與有效頁碼的完整發票分頁結果。
      */
     PageResult<Receipt> getReceiptsPage(int pageNumber, int pageSize);
 
     /**
-     * 分頁獲取扁平化的所有品項清單
+     * 取得包含總筆數與有效頁碼的完整品項分頁結果。
      */
-    List<ReceiptItemSummary> getAllItemsPaged(int limit, int offset);
+    PageResult<ReceiptItemSummary> getAllItemsPage(int pageNumber, int pageSize);
 
     /**
      * 根據 ID 刪除發票

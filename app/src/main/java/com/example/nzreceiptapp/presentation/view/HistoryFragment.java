@@ -4,6 +4,8 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -23,12 +25,16 @@ import com.example.nzreceiptapp.R;
 
 import androidx.navigation.Navigation;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class HistoryFragment extends Fragment {
 
     private FragmentHistoryBinding binding;
     private HistoryViewModel viewModel;
     private ReceiptAdapter receiptAdapter;
     private ReceiptItemSummaryAdapter itemsAdapter;
+    private boolean updatingPageSpinner;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -95,6 +101,21 @@ public class HistoryFragment extends Fragment {
     private void setupPagination() {
         binding.btnPrev.setOnClickListener(v -> viewModel.prevPage());
         binding.btnNext.setOnClickListener(v -> viewModel.nextPage());
+        binding.spinnerPage.setOnItemSelectedListener(
+                new AdapterView.OnItemSelectedListener() {
+                    @Override
+                    public void onItemSelected(AdapterView<?> parent,
+                                               View view,
+                                               int position,
+                                               long id) {
+                        if (!updatingPageSpinner) {
+                            viewModel.goToPage(position + 1);
+                        }
+                    }
+
+                    @Override
+                    public void onNothingSelected(AdapterView<?> parent) { }
+                });
     }
 
     private void setupSwipeRefresh() {
@@ -124,13 +145,14 @@ public class HistoryFragment extends Fragment {
             }
         });
 
-        viewModel.getCurrentPage().observe(getViewLifecycleOwner(), page -> {
-            binding.txtPage.setText("Page " + (page + 1));
-            binding.btnPrev.setEnabled(page > 0);
-        });
+        viewModel.getPagingState().observe(
+                getViewLifecycleOwner(), this::renderPagingState);
 
         viewModel.getIsLoading().observe(getViewLifecycleOwner(), isLoading -> {
             binding.swipeRefresh.setRefreshing(isLoading != null && isLoading);
+            HistoryViewModel.PagingUiState state =
+                    viewModel.getPagingState().getValue();
+            if (state != null) renderPagingState(state);
         });
 
         viewModel.getErrorMessages().observe(getViewLifecycleOwner(), error -> {
@@ -138,6 +160,30 @@ public class HistoryFragment extends Fragment {
                 Toast.makeText(getContext(), error, Toast.LENGTH_LONG).show();
             }
         });
+    }
+
+    private void renderPagingState(HistoryViewModel.PagingUiState state) {
+        boolean loading = Boolean.TRUE.equals(viewModel.getIsLoading().getValue());
+        binding.txtPage.setText(getString(
+                R.string.page_indicator,
+                state.getCurrentPage(),
+                state.getTotalPages()));
+        binding.btnPrev.setEnabled(state.hasPrevious() && !loading);
+        binding.btnNext.setEnabled(state.hasNext() && !loading);
+
+        List<String> pages = new ArrayList<>();
+        for (int page = 1; page <= state.getTotalPages(); page++) {
+            pages.add(String.valueOf(page));
+        }
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(
+                requireContext(), android.R.layout.simple_spinner_item, pages);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+
+        updatingPageSpinner = true;
+        binding.spinnerPage.setAdapter(adapter);
+        binding.spinnerPage.setSelection(state.getCurrentPage() - 1, false);
+        binding.spinnerPage.setEnabled(state.getTotalPages() > 1 && !loading);
+        binding.spinnerPage.post(() -> updatingPageSpinner = false);
     }
 
     @Override

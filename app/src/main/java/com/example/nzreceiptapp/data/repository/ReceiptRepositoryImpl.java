@@ -92,7 +92,7 @@ public class ReceiptRepositoryImpl implements IReceiptRepository {
 
     @Override
     public List<Receipt> getAllReceipts() {
-        return getReceiptsPaged(Integer.MAX_VALUE, 0);
+        return mapReceipts(receiptDao.getReceiptsPaged(Integer.MAX_VALUE, 0));
     }
 
     @Override
@@ -102,13 +102,8 @@ public class ReceiptRepositoryImpl implements IReceiptRepository {
     }
 
     @Override
-    public List<Receipt> getReceiptsPaged(int limit, int offset) {
-        return mapReceipts(receiptDao.getReceiptsPaged(limit, offset));
-    }
-
-    @Override
     public PageResult<Receipt> getReceiptsPage(int pageNumber, int pageSize) {
-        ReceiptDao.ReceiptPageData pageData =
+        ReceiptDao.PageData<ReceiptWithItems> pageData =
                 receiptDao.getReceiptsPage(pageNumber, pageSize);
         return new PageResult<>(
                 mapReceipts(pageData.getRows()),
@@ -126,8 +121,17 @@ public class ReceiptRepositoryImpl implements IReceiptRepository {
     }
 
     @Override
-    public List<ReceiptItemSummary> getAllItemsPaged(int limit, int offset) {
-        List<ReceiptItemRow> entities = receiptDao.getAllItemsPaged(limit, offset);
+    public PageResult<ReceiptItemSummary> getAllItemsPage(int pageNumber, int pageSize) {
+        ReceiptDao.PageData<ReceiptItemRow> pageData =
+                receiptDao.getAllItemsPage(pageNumber, pageSize);
+        return new PageResult<>(
+                mapItemSummaries(pageData.getRows()),
+                pageData.getCurrentPage(),
+                pageSize,
+                pageData.getTotalRecords());
+    }
+
+    private List<ReceiptItemSummary> mapItemSummaries(List<ReceiptItemRow> entities) {
         List<ReceiptItemSummary> result = new ArrayList<>();
         for (ReceiptItemRow row : entities) {
             ReceiptItem item = mapItemToDomain(row.item, row.discounts, row.category);
