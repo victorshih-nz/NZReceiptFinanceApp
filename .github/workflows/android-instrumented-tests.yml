@@ -26,6 +26,7 @@ concurrency:
 jobs:
   room-migration:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Check out repository
@@ -54,13 +55,14 @@ jobs:
 
       - name: Start emulator and run Room tests
         run: |
-          "$ANDROID_HOME/emulator/emulator" \
+          nohup "$ANDROID_HOME/emulator/emulator" \
             -avd room-test \
             -no-window \
             -noaudio \
             -no-boot-anim \
             -no-snapshot \
-            -gpu swiftshader_indirect &
+            -gpu swiftshader_indirect \
+            > /tmp/room-test-emulator.log 2>&1 &
           "$ANDROID_HOME/platform-tools/adb" wait-for-device
           timeout 300 bash -c 'until [ "$(adb shell getprop sys.boot_completed | tr -d "\r")" = "1" ]; do sleep 5; done'
           "$ANDROID_HOME/platform-tools/adb" shell settings put global window_animation_scale 0
