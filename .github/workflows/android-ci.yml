@@ -42,6 +42,7 @@ jobs:
           --tests "com.example.nzreceiptapp.data.local.dao.ReceiptDaoTest"
           --tests "com.example.nzreceiptapp.data.local.entity.DatabaseEntityV3Test"
           --tests "com.example.nzreceiptapp.domain.usecase.CheckDuplicateReceiptUseCaseTest"
+          --tests "com.example.nzreceiptapp.presentation.viewmodel.HistoryUiStateTest"
           --tests "com.example.nzreceiptapp.presentation.viewmodel.HistoryViewModelTest"
           --stacktrace
 
