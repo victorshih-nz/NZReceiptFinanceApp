@@ -24,6 +24,14 @@ public class StoreTest {
     }
 
     @Test
+    public void normalizedChain_null(){
+        Store store = new Store("store-id", null, null);
+
+        assertEquals("",store.getNormalizedBranchName());
+        assertEquals("", store.getNormalizedChainName());
+    }
+
+    @Test
     public void normalizedChain_whitespaceReturnsEmpty() {
         Store store = new Store("store-id", "   ", "Greenlane");
 
@@ -84,7 +92,7 @@ public class StoreTest {
     public void normalization_isIndependentOfDefaultLocale() {
         Locale originalLocale = Locale.getDefault();
         try {
-            Locale.setDefault(new Locale("tr", "TR"));
+            Locale.setDefault(Locale.forLanguageTag("tr-TR"));
             Store store = new Store("store-id", "I", "I");
 
             assertEquals("i", store.getNormalizedChainName());
