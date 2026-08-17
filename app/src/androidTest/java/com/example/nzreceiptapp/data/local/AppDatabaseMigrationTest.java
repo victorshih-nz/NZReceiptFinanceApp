@@ -14,6 +14,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.io.IOException;
+
 @RunWith(AndroidJUnit4.class)
 public class AppDatabaseMigrationTest {
     private static final String TEST_DATABASE = "history-migration-test";
@@ -25,7 +27,7 @@ public class AppDatabaseMigrationTest {
             new FrameworkSQLiteOpenHelperFactory());
 
     @Test
-    public void migrate2To3_normalizesStoresAndPreservesReceiptOrder() {
+    public void migrate2To3_normalizesStoresAndPreservesReceiptOrder() throws IOException {
         SupportSQLiteDatabase database = helper.createDatabase(TEST_DATABASE, 2);
         database.execSQL("INSERT INTO stores(id, chain_name, branch_name) "
                 + "VALUES ('store-a', 'Woolworths', ' Greenlane ')");
