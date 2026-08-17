@@ -1,6 +1,7 @@
 package com.example.nzreceiptapp.data.local;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.fail;
 
@@ -104,6 +105,81 @@ public class ReceiptDaoTransactionTest {
         assertEquals(1, stored.items.size());
         assertEquals("old-item", stored.items.get(0).item.id);
         assertNull(receiptDao.findStore("paknsave", "albany"));
+    }
+
+    @Test
+    public void saveFullReceipt_itemFailureRollsBackStoreAndReceipt() {
+        StoreEntity store = new StoreEntity(
+                "new-store", "Woolworths", "Albany");
+        ReceiptEntity receipt = new ReceiptEntity(
+                "new-receipt", store.id,
+                LocalDateTime.of(2026, 8, 17, 10, 30),
+                0, false, "OCR", "image.jpg", 399L);
+        ReceiptItemEntity invalidItem = new ReceiptItemEntity(
+                "invalid-item", receipt.id, "Milk", "Milk",
+                1, "ea", 399, "missing-category", false);
+
+        try {
+            receiptDao.saveFullReceipt(
+                    store,
+                    receipt,
+                    Collections.singletonList(invalidItem),
+                    Collections.emptyList());
+            fail("Expected the foreign-key violation to roll back the insert");
+        } catch (RuntimeException expected) {
+            // The Store and Receipt writes must roll back with the invalid Item.
+        }
+
+        assertEquals(0, receiptDao.countReceipts());
+        assertEquals(0, receiptDao.countReceiptItems());
+        assertNull(receiptDao.findStore("woolworths", "albany"));
+    }
+
+    @Test
+    public void updateFullReceipt_toExistingStore_reusesTargetAndRemovesOldStore() {
+        saveReceipt("receipt-old", "store-old", "Woolworths", "Albany",
+                LocalDateTime.of(2026, 8, 17, 10, 0), "old-item");
+        saveReceipt("receipt-target", "store-target", "PAK'nSAVE", "Albany",
+                LocalDateTime.of(2026, 8, 17, 11, 0), "target-item");
+        ReceiptEntity edited = new ReceiptEntity(
+                "receipt-old", "ignored-store-id",
+                LocalDateTime.of(2026, 8, 17, 12, 0),
+                0, false, "EDITED", "image.jpg", 500L);
+        ReceiptItemEntity editedItem = new ReceiptItemEntity(
+                "edited-item", edited.id, "Bread", "Bread",
+                1, "ea", 500, null, false);
+
+        receiptDao.updateFullReceipt(
+                new StoreEntity("unused-new-id", " pak n save ", " ALBANY "),
+                edited,
+                Collections.singletonList(editedItem),
+                Collections.emptyList());
+
+        assertEquals("store-target",
+                receiptDao.getReceiptEntityById("receipt-old").storeId);
+        assertEquals("store-target",
+                receiptDao.getReceiptEntityById("receipt-target").storeId);
+        assertNull(receiptDao.findStore("woolworths", "albany"));
+        assertNotNull(receiptDao.findStore("paknsave", "albany"));
+    }
+
+    @Test
+    public void deleteReceiptAndUnusedStore_keepsSharedStoreUntilLastReceipt() {
+        saveReceipt("receipt-first", "store-first", "Woolworths", "Albany",
+                LocalDateTime.of(2026, 8, 17, 10, 0), "first-item");
+        saveReceipt("receipt-second", "store-second", " wool-worths! ", " ALBANY ",
+                LocalDateTime.of(2026, 8, 17, 11, 0), "second-item");
+
+        receiptDao.deleteReceiptAndUnusedStore("receipt-first");
+
+        assertNull(receiptDao.getReceiptById("receipt-first"));
+        assertNotNull(receiptDao.getReceiptById("receipt-second"));
+        assertNotNull(receiptDao.findStore("woolworths", "albany"));
+
+        receiptDao.deleteReceiptAndUnusedStore("receipt-second");
+
+        assertEquals(0, receiptDao.countReceipts());
+        assertNull(receiptDao.findStore("woolworths", "albany"));
     }
 
     @Test
