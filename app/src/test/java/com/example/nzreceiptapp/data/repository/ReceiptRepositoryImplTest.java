@@ -25,7 +25,9 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 
 public class ReceiptRepositoryImplTest {
     @Mock private ReceiptDao receiptDao;
@@ -118,5 +120,38 @@ public class ReceiptRepositoryImplTest {
         assertEquals(61, result.getTotalRecords());
         assertEquals(3, result.getTotalPages());
         verify(receiptDao).getAllItemsPage(2, 30);
+    }
+
+    @Test
+    public void findDuplicateCandidates_filtersNormalizedChainWithinHour() {
+        LocalDateTime hourStart = LocalDateTime.of(2026, 8, 17, 10, 0);
+        LocalDateTime hourEnd = hourStart.plusHours(1);
+        ReceiptWithItems matching = storedReceipt(
+                "matching", " wool-worths! ", "Different Branch", hourStart.plusMinutes(5));
+        ReceiptWithItems otherChain = storedReceipt(
+                "other", "PAK'nSAVE", "Albany", hourStart.plusMinutes(10));
+        when(receiptDao.getReceiptsInPurchaseHour(hourStart, hourEnd))
+                .thenReturn(Arrays.asList(matching, otherChain));
+
+        List<Receipt> result = repository.findDuplicateCandidates(
+                "woolworths", hourStart, hourEnd);
+
+        assertEquals(1, result.size());
+        assertEquals("matching", result.get(0).getId());
+        assertEquals(" wool-worths! ", result.get(0).getStore().getChainName());
+        verify(receiptDao).getReceiptsInPurchaseHour(hourStart, hourEnd);
+    }
+
+    private ReceiptWithItems storedReceipt(String receiptId,
+                                           String chain,
+                                           String branch,
+                                           LocalDateTime purchaseDate) {
+        ReceiptWithItems stored = new ReceiptWithItems();
+        stored.receipt = new ReceiptEntity(
+                receiptId, "store-" + receiptId, purchaseDate, 0, false);
+        stored.store = new StoreEntity(
+                "store-" + receiptId, chain, branch);
+        stored.items = Collections.emptyList();
+        return stored;
     }
 }

@@ -32,6 +32,12 @@ jobs:
         run: |
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36.1"
 
+      - name: Run focused history tests
+        run: >-
+          ./gradlew testDebugUnitTest
+          --tests "com.example.nzreceiptapp.data.repository.ReceiptRepositoryImplTest"
+          --stacktrace
+
       - name: Run debug unit tests
         run: ./gradlew testDebugUnitTest --stacktrace
 

@@ -19,6 +19,7 @@ import com.example.nzreceiptapp.domain.model.Store;
 import com.example.nzreceiptapp.domain.repository.IReceiptRepository;
 import com.example.nzreceiptapp.domain.service.IReceiptImageStore;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -138,6 +139,23 @@ public class ReceiptRepositoryImpl implements IReceiptRepository {
             result.add(new ReceiptItemSummary(item, row.chainName, row.branchName, row.purchaseDate));
         }
         return result;
+    }
+
+    @Override
+    public List<Receipt> findDuplicateCandidates(String normalizedChain,
+                                                 LocalDateTime hourStart,
+                                                 LocalDateTime hourEnd) {
+        List<Receipt> candidates = mapReceipts(
+                receiptDao.getReceiptsInPurchaseHour(hourStart, hourEnd));
+        List<Receipt> matchingChain = new ArrayList<>();
+        for (Receipt candidate : candidates) {
+            if (candidate.getStore() != null
+                    && candidate.getStore().getNormalizedChainName()
+                    .equals(normalizedChain)) {
+                matchingChain.add(candidate);
+            }
+        }
+        return matchingChain;
     }
 
     @Override

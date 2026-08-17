@@ -13,6 +13,7 @@ import com.example.nzreceiptapp.data.local.entity.ReceiptItemRow;
 import com.example.nzreceiptapp.data.local.entity.ReceiptWithItems;
 import com.example.nzreceiptapp.data.local.entity.StoreEntity;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Dao
@@ -58,6 +59,13 @@ public interface ReceiptDao {
     @Transaction
     @Query("SELECT * FROM receipts WHERE id = :id")
     ReceiptWithItems getReceiptById(String id);
+
+    @Transaction
+    @Query("SELECT * FROM receipts "
+            + "WHERE purchase_date >= :hourStart AND purchase_date < :hourEnd "
+            + "ORDER BY purchase_date ASC")
+    List<ReceiptWithItems> getReceiptsInPurchaseHour(LocalDateTime hourStart,
+                                                     LocalDateTime hourEnd);
 
     @Transaction
     @Query("SELECT ri.*, s.chain_name as chainName, s.branch_name as branchName, r.purchase_date as purchaseDate " +
