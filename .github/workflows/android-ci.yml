@@ -29,10 +29,18 @@ jobs:
       - name: Run focused history tests
         run: >-
           ./gradlew testDebugUnitTest
+          --tests "com.example.nzreceiptapp.domain.model.ReceiptTest"
+          --tests "com.example.nzreceiptapp.domain.model.StoreTest"
+          --tests "com.example.nzreceiptapp.domain.model.PageResultTest"
+          --tests "com.example.nzreceiptapp.domain.logic.ReceiptValidatorTest"
+          --tests "com.example.nzreceiptapp.domain.usecase.SaveReceiptUseCaseTest"
+          --tests "com.example.nzreceiptapp.domain.usecase.GetReceiptsPagedUseCaseTest"
+          --tests "com.example.nzreceiptapp.domain.usecase.GetAllItemsPagedUseCaseTest"
           --tests "com.example.nzreceiptapp.data.repository.ReceiptRepositoryImplTest"
           --tests "com.example.nzreceiptapp.data.local.dao.ReceiptDaoTest"
           --tests "com.example.nzreceiptapp.data.local.entity.DatabaseEntityV3Test"
           --tests "com.example.nzreceiptapp.domain.usecase.CheckDuplicateReceiptUseCaseTest"
+          --tests "com.example.nzreceiptapp.presentation.viewmodel.HistoryViewModelTest"
           --stacktrace
 
       - name: Run debug unit tests

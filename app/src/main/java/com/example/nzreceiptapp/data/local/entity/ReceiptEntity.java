@@ -43,28 +43,16 @@ public class ReceiptEntity {
     @ColumnInfo(name = "printed_total_cents")
     public Long printedTotalCents;
 
-    @ColumnInfo(name = "saved_sequence", defaultValue = "0")
-    public long savedSequence;
-
     @Ignore
     public ReceiptEntity(@NonNull String id, @NonNull String storeId, LocalDateTime purchaseDate, 
                          long totalDiscountCents, boolean isSynced) {
         this(id, storeId, purchaseDate, totalDiscountCents, isSynced, null, null, null);
     }
 
-    @Ignore
     public ReceiptEntity(@NonNull String id, @NonNull String storeId,
                          LocalDateTime purchaseDate, long totalDiscountCents,
                          boolean isSynced, String rawOcrText, String imageUri,
                          Long printedTotalCents) {
-        this(id, storeId, purchaseDate, totalDiscountCents, isSynced,
-                rawOcrText, imageUri, printedTotalCents, 0);
-    }
-
-    public ReceiptEntity(@NonNull String id, @NonNull String storeId,
-                         LocalDateTime purchaseDate, long totalDiscountCents,
-                         boolean isSynced, String rawOcrText, String imageUri,
-                         Long printedTotalCents, long savedSequence) {
         this.id = id;
         this.storeId = storeId;
         this.purchaseDate = purchaseDate;
@@ -73,6 +61,5 @@ public class ReceiptEntity {
         this.rawOcrText = rawOcrText;
         this.imageUri = imageUri;
         this.printedTotalCents = printedTotalCents;
-        this.savedSequence = savedSequence;
     }
 }

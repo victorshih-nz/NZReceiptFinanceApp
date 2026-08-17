@@ -73,7 +73,6 @@ dependencies {
     testImplementation libs.junit
     androidTestImplementation libs.espresso.core
     androidTestImplementation libs.ext.junit
-    androidTestImplementation "androidx.room:room-testing:2.6.1"
     // Room Database (本地 SQLite ORM)
     implementation "androidx.room:room-runtime:2.6.1"
     annotationProcessor "androidx.room:room-compiler:2.6.1"

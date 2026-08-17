@@ -3,8 +3,6 @@ package com.example.nzreceiptapp.domain.repository;
 import com.example.nzreceiptapp.domain.model.Receipt;
 import com.example.nzreceiptapp.domain.model.ReceiptItemSummary;
 import com.example.nzreceiptapp.domain.model.PageResult;
-
-import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -15,11 +13,6 @@ public interface IReceiptRepository {
      * 儲存整張發票，包含其關聯的店家、品項與折扣
      */
     void saveReceipt(Receipt receipt);
-
-    /**
-     * Updates an existing Receipt and its owned Item/Discount graph atomically.
-     */
-    void updateReceipt(Receipt receipt);
 
     /**
      * 獲取所有已儲存的發票清單
@@ -40,14 +33,6 @@ public interface IReceiptRepository {
      * 取得包含總筆數與有效頁碼的完整品項分頁結果。
      */
     PageResult<ReceiptItemSummary> getAllItemsPage(int pageNumber, int pageSize);
-
-    /**
-     * Returns receipts in the requested purchase hour whose normalized Chain
-     * matches the supplied comparison key. The end timestamp is exclusive.
-     */
-    List<Receipt> findDuplicateCandidates(String normalizedChain,
-                                          LocalDateTime hourStart,
-                                          LocalDateTime hourEnd);
 
     /**
      * 根據 ID 刪除發票
