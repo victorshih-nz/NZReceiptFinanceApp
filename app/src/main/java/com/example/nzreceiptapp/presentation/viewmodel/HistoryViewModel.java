@@ -21,6 +21,7 @@ public class HistoryViewModel extends ViewModel {
 
     private static final int DEFAULT_RECEIPT_PAGE_SIZE = 15;
     private static final int DEFAULT_ITEM_PAGE_SIZE = 30;
+    private static final int[] SUPPORTED_PAGE_SIZES = {15, 30, 50};
 
     private final GetReceiptsPagedUseCase getReceiptsPagedUseCase;
     private final GetAllItemsPagedUseCase getAllItemsPagedUseCase;
@@ -84,6 +85,14 @@ public class HistoryViewModel extends ViewModel {
         loadPage(currentState.getViewMode(), page, paging.getPageSize());
     }
 
+    public void setPageSize(int pageSize) {
+        HistoryUiState.PagingState paging = currentState.getActivePaging();
+        if (!isSupportedPageSize(pageSize) || pageSize == paging.getPageSize()) {
+            return;
+        }
+        loadPage(currentState.getViewMode(), 1, pageSize);
+    }
+
     /** Reloads the active mode's last successful page. */
     public void loadData() {
         HistoryUiState.PagingState paging = currentState.getActivePaging();
@@ -93,7 +102,7 @@ public class HistoryViewModel extends ViewModel {
 
     private void loadPage(HistoryUiState.ViewMode mode, int page, int pageSize) {
         long requestId = requestSequence.incrementAndGet();
-        publish(currentState.startLoading());
+        publish(currentState.startLoading(page, pageSize));
 
         ioExecutor.execute(() -> {
             try {
@@ -139,5 +148,12 @@ public class HistoryViewModel extends ViewModel {
         return exception.getMessage() == null
                 ? exception.getClass().getSimpleName()
                 : exception.getMessage();
+    }
+
+    private boolean isSupportedPageSize(int pageSize) {
+        for (int supported : SUPPORTED_PAGE_SIZES) {
+            if (pageSize == supported) return true;
+        }
+        return false;
     }
 }

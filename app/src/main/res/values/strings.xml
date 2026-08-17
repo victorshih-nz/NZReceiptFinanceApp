@@ -12,6 +12,13 @@
     <string name="page_indicator">Page %1$d of %2$d</string>
     <string name="page_indicator_initial">Page 1 of 1</string>
     <string name="page_selector_description">Select page</string>
+    <string name="history_page_size_label">Records per page</string>
+    <string name="history_page_size_description">Select records per page</string>
+    <string-array name="history_page_size_choices">
+        <item>15</item>
+        <item>30</item>
+        <item>50</item>
+    </string-array>
     <string-array name="supermarket_choices">
         <item>Auto detect</item>
         <item>Woolworths</item>

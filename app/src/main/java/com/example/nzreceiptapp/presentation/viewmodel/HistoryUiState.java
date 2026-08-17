@@ -63,13 +63,15 @@ public final class HistoryUiState {
                 null);
     }
 
-    public HistoryUiState startLoading() {
+    public HistoryUiState startLoading(int requestedPage, int requestedPageSize) {
+        PagingState requestedPaging = getActivePaging()
+                .forRequest(requestedPage, requestedPageSize);
         return new HistoryUiState(
                 viewMode,
                 receipts,
                 allItems,
-                receiptPaging,
-                itemPaging,
+                viewMode == ViewMode.RECEIPTS ? requestedPaging : receiptPaging,
+                viewMode == ViewMode.ALL_ITEMS ? requestedPaging : itemPaging,
                 LoadState.LOADING,
                 null);
     }
@@ -190,6 +192,21 @@ public final class HistoryUiState {
                     result.getTotalPages(),
                     result.hasPrevious(),
                     result.hasNext());
+        }
+
+        private PagingState forRequest(int requestedPage, int requestedPageSize) {
+            int requestedTotalPages = totalRecords == 0
+                    ? 1
+                    : ((totalRecords - 1) / requestedPageSize) + 1;
+            int effectivePage = Math.max(
+                    1, Math.min(requestedPage, requestedTotalPages));
+            return new PagingState(
+                    effectivePage,
+                    requestedPageSize,
+                    totalRecords,
+                    requestedTotalPages,
+                    effectivePage > 1,
+                    totalRecords > 0 && effectivePage < requestedTotalPages);
         }
 
         public int getCurrentPage() {

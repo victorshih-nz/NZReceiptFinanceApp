@@ -36,6 +36,7 @@ public class HistoryFragment extends Fragment {
     private ReceiptAdapter receiptAdapter;
     private ReceiptItemSummaryAdapter itemsAdapter;
     private boolean updatingPageSpinner;
+    private boolean updatingPageSizeSpinner;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -102,6 +103,34 @@ public class HistoryFragment extends Fragment {
     private void setupPagination() {
         binding.btnPrev.setOnClickListener(v -> viewModel.prevPage());
         binding.btnNext.setOnClickListener(v -> viewModel.nextPage());
+
+        ArrayAdapter<CharSequence> pageSizeAdapter = ArrayAdapter.createFromResource(
+                requireContext(),
+                R.array.history_page_size_choices,
+                android.R.layout.simple_spinner_item);
+        pageSizeAdapter.setDropDownViewResource(
+                android.R.layout.simple_spinner_dropdown_item);
+        updatingPageSizeSpinner = true;
+        binding.spinnerPageSize.setAdapter(pageSizeAdapter);
+        binding.spinnerPageSize.setOnItemSelectedListener(
+                new AdapterView.OnItemSelectedListener() {
+                    @Override
+                    public void onItemSelected(AdapterView<?> parent,
+                                               View view,
+                                               int position,
+                                               long id) {
+                        if (!updatingPageSizeSpinner) {
+                            int pageSize = Integer.parseInt(
+                                    parent.getItemAtPosition(position).toString());
+                            viewModel.setPageSize(pageSize);
+                        }
+                    }
+
+                    @Override
+                    public void onNothingSelected(AdapterView<?> parent) { }
+                });
+        binding.spinnerPageSize.post(() -> updatingPageSizeSpinner = false);
+
         binding.spinnerPage.setOnItemSelectedListener(
                 new AdapterView.OnItemSelectedListener() {
                     @Override
@@ -145,6 +174,7 @@ public class HistoryFragment extends Fragment {
                         && state.isActiveContentEmpty()
                         ? View.VISIBLE : View.GONE);
         renderPagingState(state.getActivePaging(), state.isLoading());
+        renderPageSize(state.getActivePaging().getPageSize(), state.isLoading());
 
         int tabPosition = receiptsMode ? 0 : 1;
         TabLayout.Tab selectedTab = binding.tabLayout.getTabAt(tabPosition);
@@ -156,6 +186,26 @@ public class HistoryFragment extends Fragment {
             Toast.makeText(
                     getContext(), state.getErrorMessage(), Toast.LENGTH_LONG).show();
         }
+    }
+
+    private void renderPageSize(int pageSize, boolean loading) {
+        int selectedPosition;
+        if (pageSize == 30) {
+            selectedPosition = 1;
+        } else if (pageSize == 50) {
+            selectedPosition = 2;
+        } else {
+            selectedPosition = 0;
+        }
+
+        if (binding.spinnerPageSize.getSelectedItemPosition()
+                != selectedPosition) {
+            updatingPageSizeSpinner = true;
+            binding.spinnerPageSize.setSelection(selectedPosition, false);
+            binding.spinnerPageSize.post(
+                    () -> updatingPageSizeSpinner = false);
+        }
+        binding.spinnerPageSize.setEnabled(!loading);
     }
 
     private void renderPagingState(HistoryUiState.PagingState state,

@@ -145,6 +145,57 @@ public class HistoryViewModelTest {
     }
 
     @Test
+    public void setPageSize_resetsActiveModeToPageOne() {
+        when(getReceiptsPagedUseCase.execute(1, 15))
+                .thenReturn(receiptPage("receipt-1", 1, 31));
+        when(getReceiptsPagedUseCase.execute(3, 15))
+                .thenReturn(receiptPage("receipt-31", 3, 31));
+        when(getReceiptsPagedUseCase.execute(1, 30))
+                .thenReturn(new PageResult<>(
+                        Collections.singletonList(receipt("receipt-1")),
+                        1, 30, 31));
+
+        viewModel.loadData();
+        viewModel.goToPage(3);
+        viewModel.setPageSize(30);
+
+        assertPaging(1, 30, 2, false, true);
+        verify(getReceiptsPagedUseCase).execute(1, 30);
+    }
+
+    @Test
+    public void modes_retainIndependentSelectedPageSizes() {
+        when(getReceiptsPagedUseCase.execute(1, 30))
+                .thenReturn(new PageResult<>(Collections.emptyList(), 1, 30, 0));
+        when(getAllItemsPagedUseCase.execute(1, 30))
+                .thenReturn(new PageResult<>(Collections.emptyList(), 1, 30, 0));
+        when(getAllItemsPagedUseCase.execute(1, 50))
+                .thenReturn(new PageResult<>(Collections.emptyList(), 1, 50, 0));
+
+        viewModel.setPageSize(30);
+        viewModel.setViewMode(HistoryUiState.ViewMode.ALL_ITEMS);
+        viewModel.setPageSize(50);
+        viewModel.setViewMode(HistoryUiState.ViewMode.RECEIPTS);
+
+        assertEquals(30, state().getReceiptPaging().getPageSize());
+        assertEquals(50, state().getItemPaging().getPageSize());
+        assertEquals(HistoryUiState.ViewMode.RECEIPTS, state().getViewMode());
+        verify(getReceiptsPagedUseCase, times(2)).execute(1, 30);
+        verify(getAllItemsPagedUseCase).execute(1, 30);
+        verify(getAllItemsPagedUseCase).execute(1, 50);
+    }
+
+    @Test
+    public void setPageSize_ignoresUnsupportedAndCurrentValues() {
+        viewModel.setPageSize(10);
+        viewModel.setPageSize(15);
+
+        verify(getReceiptsPagedUseCase, never()).execute(1, 10);
+        verify(getReceiptsPagedUseCase, never()).execute(1, 15);
+        assertEquals(15, state().getReceiptPaging().getPageSize());
+    }
+
+    @Test
     public void refresh_missingCurrentPageUsesRepositoryEffectivePage() {
         when(getReceiptsPagedUseCase.execute(1, 15))
                 .thenReturn(receiptPage("receipt-1", 1, 31));

@@ -46,6 +46,22 @@ public class HistoryUiStateTest {
         assertEquals(1, updated.getActivePaging().getTotalPages());
     }
 
+    @Test
+    public void startLoading_updatesOnlyActivePagingRequest() {
+        HistoryUiState receiptState = HistoryUiState.initial(15, 30)
+                .withReceiptPage(new PageResult<>(
+                        Collections.singletonList(receipt("receipt-1")),
+                        2, 15, 31));
+
+        HistoryUiState loading = receiptState.startLoading(1, 30);
+
+        assertEquals(HistoryUiState.LoadState.LOADING, loading.getLoadState());
+        assertEquals(1, loading.getReceiptPaging().getCurrentPage());
+        assertEquals(30, loading.getReceiptPaging().getPageSize());
+        assertEquals(1, loading.getItemPaging().getCurrentPage());
+        assertEquals(30, loading.getItemPaging().getPageSize());
+    }
+
     private Receipt receipt(String id) {
         return new Receipt(id, null, null, null, 0, false);
     }
