@@ -31,6 +31,11 @@ public interface IReceiptRepository {
     List<Receipt> getReceiptsPaged(int limit, int offset);
 
     /**
+     * Get exact total count of persisted receipts
+     */
+    int getReceiptsCount();
+
+    /**
      * 分頁獲取扁平化的所有品項清單
      */
     List<ReceiptItemSummary> getAllItemsPaged(int limit, int offset);

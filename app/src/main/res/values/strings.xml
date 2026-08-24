@@ -14,4 +14,9 @@
         <item>Woolworths</item>
         <item>PAK\'nSAVE</item>
     </string-array>
+    <string-array name="page_size_options">
+        <item>15</item>
+        <item>30</item>
+        <item>50</item>
+    </string-array>
 </resources>
