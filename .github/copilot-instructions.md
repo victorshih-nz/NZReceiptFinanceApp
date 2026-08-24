@@ -8,8 +8,10 @@ These rules apply to every Micro Job in this repository.
 - Read the active GitHub Issue first. It defines the job scope and task branch.
 - Read only the design sections, files, tests, and direct dependencies needed for that job.
 - Do not scan the whole repository unless there is a clear reason.
-- Run `git status` before editing.
-- If unexpected uncommitted changes already exist, do not discard or overwrite them. Stop and report `HUMAN DECISION REQUIRED`.
+- Before editing any file, run `git status --short --branch` and `git branch --show-current`.
+- Confirm the current branch exactly matches the Task Branch in the active Issue.
+- If the branch does not match, do not edit any file. Switch only if the working tree can be preserved safely.
+- If there are unexpected uncommitted changes, or Git cannot switch safely, do not discard or overwrite anything. Stop and report `HUMAN DECISION REQUIRED`.
 - Never modify `main` directly.
 
 ## Design and architecture
