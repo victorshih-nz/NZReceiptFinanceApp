@@ -1,0 +1,166 @@
+name: Micro Job
+description: SA-to-Developer handoff for one approved Micro Job
+title: "[MICRO JOB] "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form only after the feature/design and Micro Job scope have been approved.
+        The Issue is the implementation contract. Agent A must not redesign, split, combine, or expand the job.
+
+  - type: input
+    id: micro_job_id
+    attributes:
+      label: Micro Job ID
+      description: Stable ID from the approved implementation plan, for example HIST-1.2.
+      placeholder: HIST-1.2
+    validations:
+      required: true
+
+  - type: input
+    id: parent_feature_batch
+    attributes:
+      label: Parent Feature / Batch
+      placeholder: History / Batch 1 — Receipt History Baseline
+    validations:
+      required: true
+
+  - type: textarea
+    id: design_references
+    attributes:
+      label: Design References
+      description: Cite only the approved documents/sections Agent A needs to read.
+      placeholder: |
+        - docs/history/HISTORY_FEATURE_DESIGN.md §6.3
+        - docs/history/HISTORY_IMPLEMENTATION_PLAN.md — HIST-1.2
+    validations:
+      required: true
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: One concise outcome for this Micro Job.
+    validations:
+      required: true
+
+  - type: textarea
+    id: architecture_context
+    attributes:
+      label: Architecture Context
+      description: Relevant dependency direction, aggregate boundary, ViewModel/use-case/repository flow, or other approved architectural constraint.
+    validations:
+      required: true
+
+  - type: textarea
+    id: in_scope
+    attributes:
+      label: In Scope
+      description: Exact work Agent A is allowed to implement.
+    validations:
+      required: true
+
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Out of Scope
+      description: Explicitly excluded work. Agent A must not implement these items.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected_components
+    attributes:
+      label: Expected Components
+      description: Likely files/classes to inspect. This is not blanket permission to change all listed files.
+    validations:
+      required: true
+
+  - type: textarea
+    id: implementation_requirements
+    attributes:
+      label: Implementation Requirements
+      description: Approved behavioural/technical requirements that must be preserved.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria
+      description: Testable completion conditions.
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: validation_level
+    attributes:
+      label: Validation Level
+      description: Defined by docs/agent/VALIDATION_LEVEL_COST_DOWN_POLICY.md.
+      options:
+        - L1 — Documentation / Non-runtime Configuration
+        - L2 — Logic / Unit-testable Code
+        - L3 — Android Integration / UI / DI
+        - L4 — Persistence / Build / Cross-layer High Risk
+    validations:
+      required: true
+
+  - type: textarea
+    id: focused_validation
+    attributes:
+      label: Expected Focused Validation
+      description: Name the focused tests/checks expected locally. Use N/A when genuinely not applicable.
+    validations:
+      required: true
+
+  - type: textarea
+    id: manual_validation
+    attributes:
+      label: Manual Validation
+      description: Human/device checks required for this Micro Job, or state "Not required".
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies / Preconditions
+      description: Prior jobs, branch state, design decisions, or other prerequisites.
+    validations:
+      required: true
+
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Known Constraints / Context
+      description: Relevant implementation constraints, existing behaviour, or cost-control notes.
+    validations:
+      required: false
+
+  - type: textarea
+    id: stop_conditions
+    attributes:
+      label: Job-specific Stop Conditions
+      description: Add Micro-Job-specific stop triggers. Repository-wide stop rules still apply automatically.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: handoff_confirmation
+    attributes:
+      label: SA Handoff Confirmation
+      options:
+        - label: Scope is small enough for one Micro Job.
+          required: true
+        - label: Acceptance criteria are testable.
+          required: true
+        - label: Validation Level is assigned.
+          required: true
+        - label: Design references are sufficient without requiring a whole-repository scan.
+          required: true
+        - label: No unresolved product/architecture decision is delegated to Agent A.
+          required: true
