@@ -1,0 +1,149 @@
+name: Micro Job
+description: Handoff one approved Micro Job to the developer agent
+title: "[MICRO JOB] "
+labels: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This issue is the job contract. Keep the work inside the approved design and scope.
+
+  - type: input
+    id: micro_job_id
+    attributes:
+      label: Micro Job ID
+      placeholder: HIST-1.2
+    validations:
+      required: true
+
+  - type: input
+    id: parent
+    attributes:
+      label: Parent Feature / Batch
+      placeholder: History / Batch 1
+    validations:
+      required: true
+
+  - type: input
+    id: task_branch
+    attributes:
+      label: Task Branch
+      placeholder: feature/hist-1.2-receipt-paging
+    validations:
+      required: true
+
+  - type: textarea
+    id: design_references
+    attributes:
+      label: Design References
+      description: List only the approved sections needed for this job.
+      placeholder: |
+        - docs/history/HISTORY_FEATURE_DESIGN.md §6.3
+        - docs/history/HISTORY_IMPLEMENTATION_PLAN.md — HIST-1.2
+    validations:
+      required: true
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: One clear outcome.
+    validations:
+      required: true
+
+  - type: textarea
+    id: in_scope
+    attributes:
+      label: In Scope
+    validations:
+      required: true
+
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Out of Scope
+    validations:
+      required: true
+
+  - type: textarea
+    id: architecture
+    attributes:
+      label: Architecture / Constraints
+      description: Note only constraints that matter for this job.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected_components
+    attributes:
+      label: Expected Components
+      description: Likely files/classes to inspect. This is not permission to change all of them.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: validation_level
+    attributes:
+      label: Validation Level
+      description: See docs/agent/VALIDATION_LEVEL_COST_DOWN_POLICY.md.
+      options:
+        - L1 — Documentation / Non-runtime
+        - L2 — Logic / Unit-testable
+        - L3 — Android UI / Integration / DI
+        - L4 — Persistence / Build / Cross-layer
+    validations:
+      required: true
+
+  - type: textarea
+    id: focused_validation
+    attributes:
+      label: Focused Validation
+      description: State the local tests/checks expected for this job. Use N/A when appropriate.
+    validations:
+      required: true
+
+  - type: textarea
+    id: manual_validation
+    attributes:
+      label: Manual Validation
+      description: State the human/device checks, or "Not required".
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies / Preconditions
+    validations:
+      required: false
+
+  - type: textarea
+    id: stop_conditions
+    attributes:
+      label: Job-specific Stop Conditions
+      description: Optional. Repository-wide stop rules still apply.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: ready
+    attributes:
+      label: SA Handoff
+      options:
+        - label: Scope and acceptance criteria are clear.
+          required: true
+        - label: Validation Level is assigned.
+          required: true
+        - label: No unresolved product or architecture decision is being handed to the developer agent.
+          required: true

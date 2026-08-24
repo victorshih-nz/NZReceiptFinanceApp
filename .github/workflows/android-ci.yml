@@ -1,0 +1,102 @@
+name: Android CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit-tests-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Check whether Android validation is needed
+        id: changes
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          CURRENT_SHA: ${{ github.sha }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          # A manual run always performs the full Android gate.
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            echo "runtime=true" >> "$GITHUB_OUTPUT"
+            echo "reason=manual-run" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            base="$PR_BASE_SHA"
+            head="$PR_HEAD_SHA"
+          else
+            base="$BEFORE_SHA"
+            head="$CURRENT_SHA"
+          fi
+
+          zero_sha="0000000000000000000000000000000000000000"
+          if [[ -z "$base" || -z "$head" || "$base" == "$zero_sha" ]] \
+            || ! git cat-file -e "${base}^{commit}" 2>/dev/null \
+            || ! git cat-file -e "${head}^{commit}" 2>/dev/null; then
+            echo "runtime=true" >> "$GITHUB_OUTPUT"
+            echo "reason=uncertain-history" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          runtime=false
+          while IFS= read -r file; do
+            [[ -z "$file" ]] && continue
+
+            case "$file" in
+              *.md|docs/*|.github/ISSUE_TEMPLATE/*|.github/pull_request_template.md|.github/copilot-instructions.md)
+                ;;
+              *)
+                runtime=true
+                break
+                ;;
+            esac
+          done < <(git diff --name-only "$base" "$head")
+
+          echo "runtime=$runtime" >> "$GITHUB_OUTPUT"
+          if [[ "$runtime" == "true" ]]; then
+            echo "reason=android-or-uncertain-change" >> "$GITHUB_OUTPUT"
+          else
+            echo "reason=non-runtime-only" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up JDK 17
+        if: steps.changes.outputs.runtime == 'true'
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Run unit tests and build debug APK
+        if: steps.changes.outputs.runtime == 'true'
+        run: |
+          chmod +x gradlew
+          ./gradlew testDebugUnitTest assembleDebug
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "Android validation: ${{ steps.changes.outputs.runtime }}"
+          echo "Reason: ${{ steps.changes.outputs.reason }}"
