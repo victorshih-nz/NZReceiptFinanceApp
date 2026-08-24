@@ -33,6 +33,9 @@ public interface ReceiptDao {
     @Query("SELECT * FROM receipts ORDER BY purchase_date DESC LIMIT :limit OFFSET :offset")
     List<ReceiptWithItems> getReceiptsPaged(int limit, int offset);
 
+    @Query("SELECT COUNT(*) FROM receipts")
+    int countReceipts();
+
     @Transaction
     @Query("SELECT * FROM receipts WHERE id = :id")
     ReceiptWithItems getReceiptById(String id);

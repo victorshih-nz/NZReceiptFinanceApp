@@ -66,4 +66,11 @@ public class ReceiptRepositoryImplTest {
         verify(receiptDao).deleteReceiptAndUnusedStore("receipt");
         verify(imageStore).delete("file:///receipt.jpg");
     }
+
+    @Test
+    public void getReceiptsCount_delegatesToDao() {
+        when(receiptDao.countReceipts()).thenReturn(42);
+        int count = repository.getReceiptsCount();
+        assertEquals(42, count);
+    }
 }

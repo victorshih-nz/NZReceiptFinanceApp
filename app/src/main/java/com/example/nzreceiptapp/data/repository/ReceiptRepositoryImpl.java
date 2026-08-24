@@ -111,6 +111,11 @@ public class ReceiptRepositoryImpl implements IReceiptRepository {
     }
 
     @Override
+    public int getReceiptsCount() {
+        return receiptDao.countReceipts();
+    }
+
+    @Override
     public List<ReceiptItemSummary> getAllItemsPaged(int limit, int offset) {
         List<ReceiptItemRow> entities = receiptDao.getAllItemsPaged(limit, offset);
         List<ReceiptItemSummary> result = new ArrayList<>();

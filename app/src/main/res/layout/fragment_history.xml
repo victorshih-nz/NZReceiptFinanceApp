@@ -37,22 +37,41 @@
             style="@style/Widget.MaterialComponents.Button.TextButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Prev" />
+            android:text="←" />
+
+        <Spinner
+            android:id="@+id/pageSelector"
+            android:layout_width="60dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp" />
 
         <TextView
-            android:id="@+id/txtPage"
+            android:id="@+id/txtTotalPages"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginHorizontal="16dp"
-            android:text="Page 1"
-            android:textColor="#333333" />
+            android:text="/ 1"
+            android:textColor="#333333"
+            android:layout_marginEnd="8dp" />
 
         <Button
             android:id="@+id/btnNext"
             style="@style/Widget.MaterialComponents.Button.TextButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Next" />
+            android:text="→" />
+
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+
+        <Spinner
+            android:id="@+id/pageSizeSpinner"
+            android:layout_width="80dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:entries="@array/page_size_options" />
 
     </LinearLayout>
 
