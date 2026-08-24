@@ -33,7 +33,6 @@ public final class ViewModelFactory implements ViewModelProvider.Factory {
         if (modelClass.isAssignableFrom(HistoryViewModel.class)) {
             return (T) new HistoryViewModel(
                     container.getReceiptsPagedUseCase(),
-                    container.getAllItemsPagedUseCase(),
                     container.deleteReceiptUseCase(),
                     container.ioExecutor()
             );

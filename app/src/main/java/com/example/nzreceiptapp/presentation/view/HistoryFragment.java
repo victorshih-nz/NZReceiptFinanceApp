@@ -16,9 +16,7 @@ import com.example.nzreceiptapp.NzReceiptApplication;
 import com.example.nzreceiptapp.databinding.FragmentHistoryBinding;
 import com.example.nzreceiptapp.di.ViewModelFactory;
 import com.example.nzreceiptapp.presentation.adapter.ReceiptAdapter;
-import com.example.nzreceiptapp.presentation.adapter.ReceiptItemSummaryAdapter;
 import com.example.nzreceiptapp.presentation.viewmodel.HistoryViewModel;
-import com.google.android.material.tabs.TabLayout;
 import com.example.nzreceiptapp.R;
 
 import androidx.navigation.Navigation;
@@ -28,7 +26,6 @@ public class HistoryFragment extends Fragment {
     private FragmentHistoryBinding binding;
     private HistoryViewModel viewModel;
     private ReceiptAdapter receiptAdapter;
-    private ReceiptItemSummaryAdapter itemsAdapter;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -49,29 +46,12 @@ public class HistoryFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        setupTabs();
         setupRecyclerView();
         setupPagination();
         setupSwipeRefresh();
         observeViewModel();
 
-        // Initial load
         viewModel.loadData();
-    }
-
-    private void setupTabs() {
-        binding.tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
-            @Override
-            public void onTabSelected(TabLayout.Tab tab) {
-                if (tab.getPosition() == 0) {
-                    viewModel.setViewMode(HistoryViewModel.ViewMode.RECEIPTS);
-                } else {
-                    viewModel.setViewMode(HistoryViewModel.ViewMode.ALL_ITEMS);
-                }
-            }
-            @Override public void onTabUnselected(TabLayout.Tab tab) {}
-            @Override public void onTabReselected(TabLayout.Tab tab) {}
-        });
     }
 
     private void setupRecyclerView() {
@@ -86,10 +66,9 @@ public class HistoryFragment extends Fragment {
                 Toast.makeText(getContext(), "Receipt deleted", Toast.LENGTH_SHORT).show();
             }
         );
-        itemsAdapter = new ReceiptItemSummaryAdapter();
-        
+
         binding.recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
-        // Adapter will be switched in observeViewModel
+        binding.recyclerView.setAdapter(receiptAdapter);
     }
 
     private void setupPagination() {
@@ -102,26 +81,9 @@ public class HistoryFragment extends Fragment {
     }
 
     private void observeViewModel() {
-        viewModel.getViewMode().observe(getViewLifecycleOwner(), mode -> {
-            if (mode == HistoryViewModel.ViewMode.RECEIPTS) {
-                binding.recyclerView.setAdapter(receiptAdapter);
-            } else {
-                binding.recyclerView.setAdapter(itemsAdapter);
-            }
-        });
-
         viewModel.getReceipts().observe(getViewLifecycleOwner(), receipts -> {
-            if (viewModel.getViewMode().getValue() == HistoryViewModel.ViewMode.RECEIPTS) {
-                receiptAdapter.submitList(receipts);
-                binding.txtEmpty.setVisibility((receipts == null || receipts.isEmpty()) ? View.VISIBLE : View.GONE);
-            }
-        });
-
-        viewModel.getAllItems().observe(getViewLifecycleOwner(), items -> {
-            if (viewModel.getViewMode().getValue() == HistoryViewModel.ViewMode.ALL_ITEMS) {
-                itemsAdapter.submitList(items);
-                binding.txtEmpty.setVisibility((items == null || items.isEmpty()) ? View.VISIBLE : View.GONE);
-            }
+            receiptAdapter.submitList(receipts);
+            binding.txtEmpty.setVisibility((receipts == null || receipts.isEmpty()) ? View.VISIBLE : View.GONE);
         });
 
         viewModel.getCurrentPage().observe(getViewLifecycleOwner(), page -> {

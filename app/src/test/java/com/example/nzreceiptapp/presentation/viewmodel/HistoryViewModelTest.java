@@ -8,7 +8,6 @@ import androidx.arch.core.executor.testing.InstantTaskExecutorRule;
 
 import com.example.nzreceiptapp.domain.model.Receipt;
 import com.example.nzreceiptapp.domain.usecase.DeleteReceiptUseCase;
-import com.example.nzreceiptapp.domain.usecase.GetAllItemsPagedUseCase;
 import com.example.nzreceiptapp.domain.usecase.GetReceiptsPagedUseCase;
 
 import org.junit.Before;
@@ -26,7 +25,6 @@ public class HistoryViewModelTest {
     public InstantTaskExecutorRule instantTaskExecutorRule = new InstantTaskExecutorRule();
 
     @Mock private GetReceiptsPagedUseCase getReceiptsPagedUseCase;
-    @Mock private GetAllItemsPagedUseCase getAllItemsPagedUseCase;
     @Mock private DeleteReceiptUseCase deleteUseCase;
 
     private HistoryViewModel viewModel;
@@ -36,7 +34,6 @@ public class HistoryViewModelTest {
         MockitoAnnotations.openMocks(this);
         viewModel = new HistoryViewModel(
                 getReceiptsPagedUseCase,
-                getAllItemsPagedUseCase,
                 deleteUseCase,
                 Runnable::run
         );

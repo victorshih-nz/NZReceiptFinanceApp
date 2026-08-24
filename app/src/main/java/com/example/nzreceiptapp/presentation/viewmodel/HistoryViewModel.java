@@ -4,9 +4,7 @@ import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 
 import com.example.nzreceiptapp.domain.model.Receipt;
-import com.example.nzreceiptapp.domain.model.ReceiptItemSummary;
 import com.example.nzreceiptapp.domain.usecase.DeleteReceiptUseCase;
-import com.example.nzreceiptapp.domain.usecase.GetAllItemsPagedUseCase;
 import com.example.nzreceiptapp.domain.usecase.GetReceiptsPagedUseCase;
 import com.example.nzreceiptapp.presentation.base.BaseViewModel;
 
@@ -18,38 +16,23 @@ import java.util.concurrent.Executor;
  */
 public class HistoryViewModel extends BaseViewModel {
 
-    public enum ViewMode { RECEIPTS, ALL_ITEMS }
-
     private final GetReceiptsPagedUseCase getReceiptsPagedUseCase;
-    private final GetAllItemsPagedUseCase getAllItemsPagedUseCase;
     private final DeleteReceiptUseCase deleteUseCase;
     private final Executor ioExecutor;
 
     private final MutableLiveData<List<Receipt>> receipts = new MutableLiveData<>();
-    private final MutableLiveData<List<ReceiptItemSummary>> allItems = new MutableLiveData<>();
-    private final MutableLiveData<ViewMode> viewMode = new MutableLiveData<>(ViewMode.RECEIPTS);
     private final MutableLiveData<Integer> currentPage = new MutableLiveData<>(0);
 
-    public HistoryViewModel(GetReceiptsPagedUseCase getReceiptsPagedUseCase, 
-                            GetAllItemsPagedUseCase getAllItemsPagedUseCase, 
+    public HistoryViewModel(GetReceiptsPagedUseCase getReceiptsPagedUseCase,
                             DeleteReceiptUseCase deleteUseCase,
                             Executor ioExecutor) {
         this.getReceiptsPagedUseCase = getReceiptsPagedUseCase;
-        this.getAllItemsPagedUseCase = getAllItemsPagedUseCase;
         this.deleteUseCase = deleteUseCase;
         this.ioExecutor = ioExecutor;
     }
 
     public LiveData<List<Receipt>> getReceipts() { return receipts; }
-    public LiveData<List<ReceiptItemSummary>> getAllItems() { return allItems; }
-    public LiveData<ViewMode> getViewMode() { return viewMode; }
     public LiveData<Integer> getCurrentPage() { return currentPage; }
-
-    public void setViewMode(ViewMode mode) {
-        viewMode.setValue(mode);
-        currentPage.setValue(0);
-        loadData();
-    }
 
     public void nextPage() {
         int page = currentPage.getValue() != null ? currentPage.getValue() : 0;
@@ -68,17 +51,11 @@ public class HistoryViewModel extends BaseViewModel {
     public void loadData() {
         isLoading.setValue(true);
         int page = currentPage.getValue() != null ? currentPage.getValue() : 0;
-        ViewMode mode = viewMode.getValue();
 
         ioExecutor.execute(() -> {
             try {
-                if (mode == ViewMode.RECEIPTS) {
-                    List<Receipt> list = getReceiptsPagedUseCase.execute(page, 10);
-                    receipts.postValue(list);
-                } else {
-                    List<ReceiptItemSummary> list = getAllItemsPagedUseCase.execute(page, 25);
-                    allItems.postValue(list);
-                }
+                List<Receipt> list = getReceiptsPagedUseCase.execute(page, 10);
+                receipts.postValue(list);
             } catch (Exception e) {
                 errorMessages.postValue("Failed to load history: " + e.getMessage());
             } finally {
