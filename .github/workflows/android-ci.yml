@@ -2,6 +2,7 @@ name: Android CI
 
 on:
   push:
+    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -20,8 +21,100 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Detect Android-relevant changes
+        id: changes
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          CURRENT_SHA: ${{ github.sha }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          # Manual runs intentionally execute the complete Android gate.
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            echo "runtime=true" >> "$GITHUB_OUTPUT"
+            echo "reason=manual-full-validation" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          changed_files=""
+
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            # Classify the complete PR, not only the newest commit.
+            if [[ -z "$PR_BASE_SHA" || -z "$PR_HEAD_SHA" ]] \
+              || ! git cat-file -e "${PR_BASE_SHA}^{commit}" 2>/dev/null \
+              || ! git cat-file -e "${PR_HEAD_SHA}^{commit}" 2>/dev/null; then
+              echo "runtime=true" >> "$GITHUB_OUTPUT"
+              echo "reason=uncertain-pr-history" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            changed_files="$(git diff --name-only "$PR_BASE_SHA" "$PR_HEAD_SHA")"
+
+          elif [[ "$EVENT_NAME" == "push" ]]; then
+            zero_sha="0000000000000000000000000000000000000000"
+
+            # Only push-to-main is configured. If comparison is uncertain,
+            # validate conservatively.
+            if [[ -z "$BEFORE_SHA" || "$BEFORE_SHA" == "$zero_sha" ]] \
+              || ! git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null; then
+              echo "runtime=true" >> "$GITHUB_OUTPUT"
+              echo "reason=uncertain-push-history" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            changed_files="$(git diff --name-only "$BEFORE_SHA" "$CURRENT_SHA")"
+
+          else
+            echo "runtime=true" >> "$GITHUB_OUTPUT"
+            echo "reason=unknown-event" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Changed files:"
+          printf '%s\n' "$changed_files"
+
+          runtime=false
+
+          while IFS= read -r file; do
+            [[ -z "$file" ]] && continue
+
+            case "$file" in
+              *.md)
+                ;;
+              docs/*)
+                ;;
+              .github/ISSUE_TEMPLATE/*)
+                ;;
+              .github/PULL_REQUEST_TEMPLATE.md)
+                ;;
+              .github/PULL_REQUEST_TEMPLATE/*)
+                ;;
+              .github/copilot-instructions.md)
+                ;;
+              *)
+                runtime=true
+                break
+                ;;
+            esac
+          done <<< "$changed_files"
+
+          echo "runtime=$runtime" >> "$GITHUB_OUTPUT"
+
+          if [[ "$runtime" == "true" ]]; then
+            echo "reason=android-relevant-change" >> "$GITHUB_OUTPUT"
+          else
+            echo "reason=non-runtime-only-change" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Set up JDK 17
+        if: steps.changes.outputs.runtime == 'true'
         uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -29,10 +122,28 @@ jobs:
           cache: gradle
 
       - name: Ensure gradlew is executable
+        if: steps.changes.outputs.runtime == 'true'
         run: chmod +x gradlew
 
       - name: Run unit tests
+        if: steps.changes.outputs.runtime == 'true'
         run: ./gradlew testDebugUnitTest
 
       - name: Build debug APK
+        if: steps.changes.outputs.runtime == 'true'
         run: ./gradlew assembleDebug
+
+      - name: Android validation summary
+        if: always()
+        shell: bash
+        run: |
+          echo "Change detection outcome: ${{ steps.changes.outcome }}"
+          echo "Reason: ${{ steps.changes.outputs.reason }}"
+
+          if [[ "${{ steps.changes.outcome }}" != "success" ]]; then
+            echo "Change detection failed; Android validation status is not trustworthy."
+          elif [[ "${{ steps.changes.outputs.runtime }}" == "true" ]]; then
+            echo "Android-relevant/uncertain change: full unit tests and debug build were required."
+          else
+            echo "Non-runtime-only change: JDK/Gradle validation was intentionally skipped."
+          fi
