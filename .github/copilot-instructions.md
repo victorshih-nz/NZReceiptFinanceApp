@@ -1,146 +1,112 @@
 # Repository Copilot Instructions
 
-Purpose
-- Provide repository-wide rules and guardrails for automated agents and contributors.
-- Preserve the project's MVVM + Clean Architecture intent and risk-based validation discipline.
-- Minimise unnecessary AI context, repeated validation, and compute without weakening required quality gates.
+These rules apply to every Micro Job in this repository.
 
-Before starting work (required checks)
-- Run `git status` and confirm the working tree is clean.
-- Confirm the current branch matches the explicitly authorised task branch.
-- Never modify repository files directly on `main`.
-- If currently on `main` and the task requires repository modifications, stop and report HUMAN DECISION REQUIRED.
-- Do not modify production or test code unless the task explicitly requests it.
+## Start here
 
-Architecture rules
-- Preserve MVVM: UI logic must remain in presentation (Fragments, ViewModels), not moved into domain or data.
-- Preserve Clean Architecture boundaries:
-  - presentation may depend on domain
-  - data may depend on domain
-  - domain must not depend on presentation or data
-  - domain must remain independent of Android UI, Room, and framework implementation details
-  - DI/composition root wires concrete implementations to domain interfaces
-- Respect responsibilities: presentation (UI, adapters, state), domain (models, use cases, interfaces, business rules), data (Room, OCR, parsers, repositories), DI (AppContainer, ViewModelFactory).
-- Prefer using or extending existing architecture before adding new abstractions or layers.
-- Do not move responsibilities between layers without clear justification and documented rationale.
+- Work on one Micro Job at a time.
+- Read the active GitHub Issue first. It defines the job scope and task branch.
+- Read only the design sections, files, tests, and direct dependencies needed for that job.
+- Do not scan the whole repository unless there is a clear reason.
+- Run `git status` before editing.
+- If unexpected uncommitted changes already exist, do not discard or overwrite them. Stop and report `HUMAN DECISION REQUIRED`.
+- Never modify `main` directly.
 
-Scope rules
-- Work on only one requested Micro Job at a time.
-- Do not split, combine, redesign, or expand a Micro Job unless explicitly authorised.
-- Do not perform unrelated refactoring or formatting changes.
-- Inspect relevant callers and downstream dependencies before changing behaviour.
-- Make the smallest correct change that satisfies the active Micro Job.
+## Design and architecture
 
-Validation rules
-- Every implementation Micro Job must have an assigned Validation Level: L1, L2, L3, or L4.
-- Follow `docs/agent/VALIDATION_LEVEL_COST_DOWN_POLICY.md` for detailed level definitions and cost-control rules.
-- The active GitHub Issue is the source of truth for the assigned level and job-specific validation.
-- Use only the validation required by that level and active Micro Job; do not mechanically run the full Android test/build sequence for every job.
-- If actual work requires a higher level, report the escalation before substantial extra work.
-- If escalation crosses scope, architecture, dependency, Room migration, destructive operation, or another Stop rule, stop and report HUMAN DECISION REQUIRED.
-- Always run `git diff --check` before reporting a Micro Job ready for Git action/review.
-- Add or update focused unit tests when behaviour changes and focused unit testing is applicable.
-- Never weaken, remove, bypass, or skip relevant tests to make a change appear to pass.
-- GitHub Actions is the authoritative final automated validation environment after an authorised push/PR.
-- GitHub Actions independently decides whether Android Gradle validation is required; Agent A must not try to bypass that remote gate.
-- A successful GitHub Actions gate does not replace required Human manual Android validation.
+Keep the existing MVVM + Clean Architecture structure:
 
-Validation levels
-- L1 — Documentation / non-runtime configuration:
-  - Run lightweight relevant checks such as `git diff --check` and syntax/schema validation.
-  - Do not run local `testDebugUnitTest` or `assembleDebug` by default.
-- L2 — Logic / unit-testable code:
-  - Run relevant focused unit tests.
-  - Run local `testDebugUnitTest` only when shared-risk impact, failure evidence, or the active Issue requires it.
-  - Do not run local `assembleDebug` by default when Android resources, Manifest, Navigation, DI, or build wiring are unchanged.
-- L3 — Android integration / UI / DI:
-  - Run relevant focused tests when applicable.
-  - Run local `assembleDebug`.
-  - Run local `testDebugUnitTest` only when the active Issue or cross-component risk requires it.
-  - Human manual Android validation is required for user-visible/device-dependent behaviour.
-- L4 — Persistence / build / cross-layer high risk:
-  - For runtime/persistence work, normally run focused tests, local `testDebugUnitTest`, and local `assembleDebug`.
-  - For GitHub Actions workflow-only work, use workflow-specific validation and an actual GitHub Actions run; local Android unit/build tasks are not automatically required solely to validate YAML/control flow.
-  - Human manual validation is required when persistence, user-visible data, device behaviour, or end-to-end flow is affected.
+- presentation may depend on domain;
+- data may depend on domain;
+- domain must not depend on presentation, data, Android UI, or Room;
+- AppContainer / ViewModelFactory remain the composition root.
 
-Gradle commands
-- On Linux/macOS and GitHub Actions use `./gradlew`.
-- On Windows use `gradlew.bat`.
-- Run only the Gradle tasks required by the assigned Validation Level and active Micro Job.
+Prefer the existing design before adding a new abstraction.
 
-AI context and compute rules
-- Use one fresh Agent conversation for each new Micro Job when separate conversations are supported.
-- Treat repository instructions/approved design documents as long-term project memory and the active GitHub Issue as the current job contract.
-- Read the active Issue, referenced design sections, expected components, and relevant direct callers/dependencies first.
-- Do not scan or reread the entire repository by default.
-- Expand inspection only when a relevant dependency, failing test, architecture uncertainty, or Stop-rule risk requires it.
-- Do not repeatedly reread unchanged large files/design documents within the same Micro Job.
-- For successful tests/builds/CI, use concise result summaries; do not copy or analyse full successful logs.
-- For failures, inspect the failed step and first relevant error with limited surrounding context, then expand only if needed.
-- Prefer concise Git commands such as `git status --short`, `git diff --stat`, and path-scoped `git diff` when sufficient.
-- Do not repeatedly rerun expensive tests after every small edit. Re-run the relevant failed/focused check first, then complete the validation required by the assigned level once the focused check passes.
+The frozen feature design defines product behaviour. The active Issue may narrow that design for one Micro Job, but it must not contradict it. If they conflict, stop and ask for a Human/SA decision.
 
-CI failure classification
-- Classify a CI failure before attempting a fix:
-  - Job-introduced
-  - Pre-existing
-  - CI Infrastructure
-  - Flaky or uncertain
-- Fix only Job-introduced failures within the active Micro Job.
-- Do not repair unrelated pre-existing or flaky failures unless explicitly authorised.
+Do not invent missing product behaviour.
 
-Git rules
-- Check `git status` before starting work and before creating commits.
-- Never modify unrelated existing changes.
-- Never use `git reset --hard` or `git clean -fd` in routine workflows.
-- Never force push (`git push --force`) to shared branches.
-- Never merge a task branch into main automatically.
-- Merging into main requires explicit human approval after review and validation.
-- Do not stage, commit, push, create a PR, or merge unless explicitly requested by the active job.
-- Stage only explicitly authorised paths; do not use broad staging such as `git add .` or `git add -A` unless explicitly authorised.
+## Scope
 
-Stop rules
-Stop and report HUMAN DECISION REQUIRED if the job unexpectedly requires any of the following:
-- Room database schema migration
-- Adding a new external dependency
-- Public interface changes (breaking API or exported contracts)
-- Major architecture changes across layers
-- Deleting substantial existing code
-- Changes significantly outside the requested scope
-- Fixing unrelated pre-existing failures or flaky tests
-- Destructive Git operations
+Make the smallest correct change.
 
-When stopping, report:
-- reason why the stop was triggered;
-- affected files/components;
-- available options with pros/cons;
-- recommended option.
+Do not:
 
-Developer behaviour
-- Prefer the smallest correct change.
-- Keep code easy to understand for a junior Android developer.
-- Explain non-obvious architectural decisions in the PR or Issue.
-- Do not over-engineer: prefer simple, testable solutions that fit the approved design.
-- Do not invent missing product behaviour. If an acceptance criterion or interaction is materially ambiguous, request a Human/SA decision.
+- split, combine, redesign, or expand the Micro Job without approval;
+- refactor unrelated code;
+- change unrelated formatting;
+- fix unrelated failures;
+- weaken or remove tests just to get a green result.
 
-Completion and handoff
-- After local implementation/validation, report readiness for the next authorised Git action.
-- Do not claim final Micro Job PASS before required GitHub Actions and Agent B final review are complete.
-- Keep reports concise.
-- Report:
-  - Micro Job ID;
-  - Validation Level;
-  - changed files and purpose;
-  - local validation executed and PASS/FAIL/NOT REQUIRED;
-  - GitHub Actions status when available;
-  - manual validation requirement;
-  - `git diff --stat`;
-  - `git status`;
-  - unexpected findings/validation escalation;
-  - Stop-rule status.
-- Do not include full successful test/build logs.
+Inspect relevant callers and downstream dependencies before changing behaviour.
 
-Notes
-- Validation is risk-based.
-- The goal is minimum unnecessary compute, not minimum engineering assurance.
-- When in doubt about scope, architecture, persistence, dependencies, or destructive actions, stop and ask for Human guidance.
+## Validation
+
+Every Micro Job has one Validation Level.
+
+- **L1** — lightweight checks only. No Android test/build by default.
+- **L2** — focused unit tests. Full unit suite is conditional.
+- **L3** — focused tests when useful, plus local `assembleDebug`. Manual Android validation is normally required for visible UI/device changes.
+- **L4** — for runtime/persistence work, normally run focused tests, `testDebugUnitTest`, and `assembleDebug`. CI-workflow-only jobs use workflow-specific validation instead.
+
+Always run `git diff --check` before handoff.
+
+Use the validation written in the Issue. If more detail is needed, read only the relevant section of `docs/agent/VALIDATION_LEVEL_COST_DOWN_POLICY.md`; do not reread the whole policy for every job.
+
+GitHub Actions is the final automated gate after an authorised PR/push. A green CI result does not replace required manual Android testing.
+
+If the work grows into a higher Validation Level, report it before continuing. Stop for a Human decision if the change also crosses the approved scope or a stop rule.
+
+## Cost control
+
+Use a fresh agent conversation for a new Micro Job when possible.
+
+Keep context small:
+
+- prefer targeted file reads and path-scoped diffs;
+- do not reread large unchanged files;
+- summarise successful test/build results;
+- on failure, inspect the failed step and first useful error before opening more logs;
+- rerun the failed/focused check first, then finish only the validation required by the job.
+
+## Git safety
+
+Do not stage, commit, push, create a PR, or merge unless that action is explicitly authorised.
+
+Also:
+
+- do not use `git reset --hard`;
+- do not use `git clean -fd`;
+- do not force push;
+- do not stage unrelated files;
+- avoid `git add .` and `git add -A` unless explicitly authorised;
+- never merge into `main` automatically.
+
+## Stop and ask
+
+Report `HUMAN DECISION REQUIRED` if the job unexpectedly needs:
+
+- a Room schema migration;
+- a new external dependency;
+- a breaking public/interface change;
+- a major architecture change;
+- substantial code deletion;
+- significant work outside the Issue;
+- repair of an unrelated pre-existing failure;
+- a destructive Git action.
+
+State the reason, affected area, and practical options.
+
+## Handoff
+
+Keep the final report short:
+
+- Micro Job ID and Validation Level
+- changed files and purpose
+- validation run and result
+- CI status, if available
+- manual validation still needed
+- `git diff --stat`
+- `git status`
+- unexpected findings or escalation
