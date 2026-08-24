@@ -1,28 +1,35 @@
 name: Micro Job
-description: SA-to-Developer handoff for one approved Micro Job
+description: Handoff one approved Micro Job to the developer agent
 title: "[MICRO JOB] "
 labels: []
+
 body:
   - type: markdown
     attributes:
       value: |
-        Use this form only after the feature/design and Micro Job scope have been approved.
-        The Issue is the implementation contract. Agent A must not redesign, split, combine, or expand the job.
+        This issue is the job contract. Keep the work inside the approved design and scope.
 
   - type: input
     id: micro_job_id
     attributes:
       label: Micro Job ID
-      description: Stable ID from the approved implementation plan, for example HIST-1.2.
       placeholder: HIST-1.2
     validations:
       required: true
 
   - type: input
-    id: parent_feature_batch
+    id: parent
     attributes:
       label: Parent Feature / Batch
-      placeholder: History / Batch 1 — Receipt History Baseline
+      placeholder: History / Batch 1
+    validations:
+      required: true
+
+  - type: input
+    id: task_branch
+    attributes:
+      label: Task Branch
+      placeholder: feature/hist-1.2-receipt-paging
     validations:
       required: true
 
@@ -30,7 +37,7 @@ body:
     id: design_references
     attributes:
       label: Design References
-      description: Cite only the approved documents/sections Agent A needs to read.
+      description: List only the approved sections needed for this job.
       placeholder: |
         - docs/history/HISTORY_FEATURE_DESIGN.md §6.3
         - docs/history/HISTORY_IMPLEMENTATION_PLAN.md — HIST-1.2
@@ -41,15 +48,7 @@ body:
     id: goal
     attributes:
       label: Goal
-      description: One concise outcome for this Micro Job.
-    validations:
-      required: true
-
-  - type: textarea
-    id: architecture_context
-    attributes:
-      label: Architecture Context
-      description: Relevant dependency direction, aggregate boundary, ViewModel/use-case/repository flow, or other approved architectural constraint.
+      description: One clear outcome.
     validations:
       required: true
 
@@ -57,7 +56,6 @@ body:
     id: in_scope
     attributes:
       label: In Scope
-      description: Exact work Agent A is allowed to implement.
     validations:
       required: true
 
@@ -65,7 +63,14 @@ body:
     id: out_of_scope
     attributes:
       label: Out of Scope
-      description: Explicitly excluded work. Agent A must not implement these items.
+    validations:
+      required: true
+
+  - type: textarea
+    id: architecture
+    attributes:
+      label: Architecture / Constraints
+      description: Note only constraints that matter for this job.
     validations:
       required: true
 
@@ -73,15 +78,7 @@ body:
     id: expected_components
     attributes:
       label: Expected Components
-      description: Likely files/classes to inspect. This is not blanket permission to change all listed files.
-    validations:
-      required: true
-
-  - type: textarea
-    id: implementation_requirements
-    attributes:
-      label: Implementation Requirements
-      description: Approved behavioural/technical requirements that must be preserved.
+      description: Likely files/classes to inspect. This is not permission to change all of them.
     validations:
       required: true
 
@@ -89,7 +86,6 @@ body:
     id: acceptance_criteria
     attributes:
       label: Acceptance Criteria
-      description: Testable completion conditions.
       placeholder: |
         - [ ] ...
         - [ ] ...
@@ -100,20 +96,20 @@ body:
     id: validation_level
     attributes:
       label: Validation Level
-      description: Defined by docs/agent/VALIDATION_LEVEL_COST_DOWN_POLICY.md.
+      description: See docs/agent/VALIDATION_LEVEL_COST_DOWN_POLICY.md.
       options:
-        - L1 — Documentation / Non-runtime Configuration
-        - L2 — Logic / Unit-testable Code
-        - L3 — Android Integration / UI / DI
-        - L4 — Persistence / Build / Cross-layer High Risk
+        - L1 — Documentation / Non-runtime
+        - L2 — Logic / Unit-testable
+        - L3 — Android UI / Integration / DI
+        - L4 — Persistence / Build / Cross-layer
     validations:
       required: true
 
   - type: textarea
     id: focused_validation
     attributes:
-      label: Expected Focused Validation
-      description: Name the focused tests/checks expected locally. Use N/A when genuinely not applicable.
+      label: Focused Validation
+      description: State the local tests/checks expected for this job. Use N/A when appropriate.
     validations:
       required: true
 
@@ -121,7 +117,7 @@ body:
     id: manual_validation
     attributes:
       label: Manual Validation
-      description: Human/device checks required for this Micro Job, or state "Not required".
+      description: State the human/device checks, or "Not required".
     validations:
       required: true
 
@@ -129,15 +125,6 @@ body:
     id: dependencies
     attributes:
       label: Dependencies / Preconditions
-      description: Prior jobs, branch state, design decisions, or other prerequisites.
-    validations:
-      required: true
-
-  - type: textarea
-    id: constraints
-    attributes:
-      label: Known Constraints / Context
-      description: Relevant implementation constraints, existing behaviour, or cost-control notes.
     validations:
       required: false
 
@@ -145,22 +132,18 @@ body:
     id: stop_conditions
     attributes:
       label: Job-specific Stop Conditions
-      description: Add Micro-Job-specific stop triggers. Repository-wide stop rules still apply automatically.
+      description: Optional. Repository-wide stop rules still apply.
     validations:
       required: false
 
   - type: checkboxes
-    id: handoff_confirmation
+    id: ready
     attributes:
-      label: SA Handoff Confirmation
+      label: SA Handoff
       options:
-        - label: Scope is small enough for one Micro Job.
-          required: true
-        - label: Acceptance criteria are testable.
+        - label: Scope and acceptance criteria are clear.
           required: true
         - label: Validation Level is assigned.
           required: true
-        - label: Design references are sufficient without requiring a whole-repository scan.
-          required: true
-        - label: No unresolved product/architecture decision is delegated to Agent A.
+        - label: No unresolved product or architecture decision is being handed to the developer agent.
           required: true
