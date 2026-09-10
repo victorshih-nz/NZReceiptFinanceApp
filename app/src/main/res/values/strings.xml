@@ -7,6 +7,7 @@
     <string name="action_gallery">Gallery</string>
     <string name="action_test_sample">Test Sample</string>
     <string name="msg_no_receipts">No receipts yet. Start scanning!</string>
+    <string name="msg_no_items">No purchased items yet.</string>
     <string name="action_delete">Delete</string>
     <string name="action_review">Review receipt</string>
     <string name="page_indicator">Page %1$d of %2$d</string>
@@ -14,6 +15,10 @@
     <string name="page_selector_description">Select page</string>
     <string name="history_page_size_label">Records per page</string>
     <string name="history_page_size_description">Select records per page</string>
+    <string name="history_loading_description">Loading history</string>
+    <string name="history_error_title">Unable to load history</string>
+    <string name="history_load_error_message">History data could not be loaded. Please try again.</string>
+    <string name="action_retry">Retry</string>
     <string-array name="history_page_size_choices">
         <item>15</item>
         <item>30</item>
