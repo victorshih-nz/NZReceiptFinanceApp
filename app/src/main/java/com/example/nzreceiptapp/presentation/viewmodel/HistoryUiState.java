@@ -15,7 +15,15 @@ public final class HistoryUiState {
 
     public enum ViewMode { RECEIPTS, ALL_ITEMS }
 
-    public enum LoadState { IDLE, LOADING, CONTENT, EMPTY, ERROR }
+    public enum LoadState {
+        IDLE,
+        INITIAL_LOADING,
+        CONTENT,
+        EMPTY,
+        INITIAL_ERROR,
+        REFRESHING,
+        PAGE_CHANGING
+    }
 
     private final ViewMode viewMode;
     private final List<Receipt> receipts;
@@ -53,26 +61,30 @@ public final class HistoryUiState {
     }
 
     public HistoryUiState selectMode(ViewMode mode) {
+        PagingState selectedPaging = getPaging(mode);
         return new HistoryUiState(
                 mode,
                 receipts,
                 allItems,
                 receiptPaging,
                 itemPaging,
-                loadState,
+                settledState(mode, selectedPaging),
                 null);
     }
 
-    public HistoryUiState startLoading(int requestedPage, int requestedPageSize) {
-        PagingState requestedPaging = getActivePaging()
-                .forRequest(requestedPage, requestedPageSize);
+    public HistoryUiState startLoading(LoadState loadingState) {
+        if (loadingState != LoadState.INITIAL_LOADING
+                && loadingState != LoadState.REFRESHING
+                && loadingState != LoadState.PAGE_CHANGING) {
+            throw new IllegalArgumentException("A loading state is required");
+        }
         return new HistoryUiState(
                 viewMode,
                 receipts,
                 allItems,
-                viewMode == ViewMode.RECEIPTS ? requestedPaging : receiptPaging,
-                viewMode == ViewMode.ALL_ITEMS ? requestedPaging : itemPaging,
-                LoadState.LOADING,
+                receiptPaging,
+                itemPaging,
+                loadingState,
                 null);
     }
 
@@ -98,15 +110,26 @@ public final class HistoryUiState {
                 null);
     }
 
-    public HistoryUiState withError(String message) {
+    public HistoryUiState withInitialError(String message) {
         return new HistoryUiState(
                 viewMode,
                 receipts,
                 allItems,
                 receiptPaging,
                 itemPaging,
-                LoadState.ERROR,
+                LoadState.INITIAL_ERROR,
                 message);
+    }
+
+    public HistoryUiState settle() {
+        return new HistoryUiState(
+                viewMode,
+                receipts,
+                allItems,
+                receiptPaging,
+                itemPaging,
+                settledState(viewMode, getActivePaging()),
+                null);
     }
 
     public ViewMode getViewMode() {
@@ -130,7 +153,11 @@ public final class HistoryUiState {
     }
 
     public PagingState getActivePaging() {
-        return viewMode == ViewMode.ALL_ITEMS ? itemPaging : receiptPaging;
+        return getPaging(viewMode);
+    }
+
+    public PagingState getPaging(ViewMode mode) {
+        return mode == ViewMode.ALL_ITEMS ? itemPaging : receiptPaging;
     }
 
     public LoadState getLoadState() {
@@ -138,7 +165,17 @@ public final class HistoryUiState {
     }
 
     public boolean isLoading() {
-        return loadState == LoadState.LOADING;
+        return loadState == LoadState.INITIAL_LOADING
+                || loadState == LoadState.REFRESHING
+                || loadState == LoadState.PAGE_CHANGING;
+    }
+
+    public boolean isRefreshing() {
+        return loadState == LoadState.REFRESHING;
+    }
+
+    public boolean hasActiveSuccessfulPage() {
+        return getActivePaging().hasLoaded();
     }
 
     public boolean isActiveContentEmpty() {
@@ -149,6 +186,16 @@ public final class HistoryUiState {
 
     public String getErrorMessage() {
         return errorMessage;
+    }
+
+    private LoadState settledState(ViewMode mode, PagingState paging) {
+        if (!paging.hasLoaded()) {
+            return LoadState.IDLE;
+        }
+        boolean empty = mode == ViewMode.ALL_ITEMS
+                ? allItems.isEmpty()
+                : receipts.isEmpty();
+        return empty ? LoadState.EMPTY : LoadState.CONTENT;
     }
 
     private static <T> List<T> immutableCopy(List<T> source) {
@@ -165,23 +212,26 @@ public final class HistoryUiState {
         private final int totalPages;
         private final boolean hasPrevious;
         private final boolean hasNext;
+        private final boolean loaded;
 
         private PagingState(int currentPage,
                             int pageSize,
                             int totalRecords,
                             int totalPages,
                             boolean hasPrevious,
-                            boolean hasNext) {
+                            boolean hasNext,
+                            boolean loaded) {
             this.currentPage = currentPage;
             this.pageSize = pageSize;
             this.totalRecords = totalRecords;
             this.totalPages = totalPages;
             this.hasPrevious = hasPrevious;
             this.hasNext = hasNext;
+            this.loaded = loaded;
         }
 
         private static PagingState initial(int pageSize) {
-            return new PagingState(1, pageSize, 0, 1, false, false);
+            return new PagingState(1, pageSize, 0, 1, false, false, false);
         }
 
         private static PagingState from(PageResult<?> result) {
@@ -191,22 +241,8 @@ public final class HistoryUiState {
                     result.getTotalRecords(),
                     result.getTotalPages(),
                     result.hasPrevious(),
-                    result.hasNext());
-        }
-
-        private PagingState forRequest(int requestedPage, int requestedPageSize) {
-            int requestedTotalPages = totalRecords == 0
-                    ? 1
-                    : ((totalRecords - 1) / requestedPageSize) + 1;
-            int effectivePage = Math.max(
-                    1, Math.min(requestedPage, requestedTotalPages));
-            return new PagingState(
-                    effectivePage,
-                    requestedPageSize,
-                    totalRecords,
-                    requestedTotalPages,
-                    effectivePage > 1,
-                    totalRecords > 0 && effectivePage < requestedTotalPages);
+                    result.hasNext(),
+                    true);
         }
 
         public int getCurrentPage() {
@@ -231,6 +267,10 @@ public final class HistoryUiState {
 
         public boolean hasNext() {
             return hasNext;
+        }
+
+        public boolean hasLoaded() {
+            return loaded;
         }
     }
 }

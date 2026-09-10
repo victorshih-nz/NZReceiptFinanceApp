@@ -1,7 +1,9 @@
 package com.example.nzreceiptapp.presentation.viewmodel;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 import com.example.nzreceiptapp.domain.model.PageResult;
 import com.example.nzreceiptapp.domain.model.Receipt;
@@ -47,19 +49,63 @@ public class HistoryUiStateTest {
     }
 
     @Test
-    public void startLoading_updatesOnlyActivePagingRequest() {
+    public void pageChanging_keepsLastSuccessfulPagingAndContent() {
         HistoryUiState receiptState = HistoryUiState.initial(15, 30)
                 .withReceiptPage(new PageResult<>(
                         Collections.singletonList(receipt("receipt-1")),
                         2, 15, 31));
 
-        HistoryUiState loading = receiptState.startLoading(1, 30);
+        HistoryUiState loading = receiptState.startLoading(
+                HistoryUiState.LoadState.PAGE_CHANGING);
 
-        assertEquals(HistoryUiState.LoadState.LOADING, loading.getLoadState());
-        assertEquals(1, loading.getReceiptPaging().getCurrentPage());
-        assertEquals(30, loading.getReceiptPaging().getPageSize());
+        assertEquals(HistoryUiState.LoadState.PAGE_CHANGING,
+                loading.getLoadState());
+        assertEquals("receipt-1", loading.getReceipts().get(0).getId());
+        assertEquals(2, loading.getReceiptPaging().getCurrentPage());
+        assertEquals(15, loading.getReceiptPaging().getPageSize());
         assertEquals(1, loading.getItemPaging().getCurrentPage());
         assertEquals(30, loading.getItemPaging().getPageSize());
+        assertTrue(loading.isLoading());
+        assertFalse(loading.isRefreshing());
+    }
+
+    @Test
+    public void selectMode_derivesStateFromThatModesSuccessfulPage() {
+        HistoryUiState receiptContent = HistoryUiState.initial(15, 30)
+                .withReceiptPage(new PageResult<>(
+                        Collections.singletonList(receipt("receipt-1")),
+                        1, 15, 1));
+
+        HistoryUiState unloadedItems = receiptContent.selectMode(
+                HistoryUiState.ViewMode.ALL_ITEMS);
+        HistoryUiState emptyItems = unloadedItems.withItemPage(
+                new PageResult<>(Collections.emptyList(), 1, 30, 0));
+
+        assertEquals(HistoryUiState.LoadState.IDLE,
+                unloadedItems.getLoadState());
+        assertFalse(unloadedItems.hasActiveSuccessfulPage());
+        assertEquals(HistoryUiState.LoadState.EMPTY,
+                emptyItems.getLoadState());
+        assertTrue(emptyItems.hasActiveSuccessfulPage());
+        assertEquals(HistoryUiState.LoadState.CONTENT,
+                emptyItems.selectMode(HistoryUiState.ViewMode.RECEIPTS)
+                        .getLoadState());
+    }
+
+    @Test
+    public void settle_restoresContentAfterRecoverableLoadingState() {
+        HistoryUiState content = HistoryUiState.initial(15, 30)
+                .withReceiptPage(new PageResult<>(
+                        Collections.singletonList(receipt("receipt-1")),
+                        1, 15, 1));
+
+        HistoryUiState settled = content
+                .startLoading(HistoryUiState.LoadState.REFRESHING)
+                .settle();
+
+        assertEquals(HistoryUiState.LoadState.CONTENT,
+                settled.getLoadState());
+        assertEquals("receipt-1", settled.getReceipts().get(0).getId());
     }
 
     private Receipt receipt(String id) {

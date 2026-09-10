@@ -33,6 +33,8 @@ public class HistoryViewModel extends ViewModel {
             new MutableLiveData<>();
     private volatile HistoryUiState currentState = HistoryUiState.initial(
             DEFAULT_RECEIPT_PAGE_SIZE, DEFAULT_ITEM_PAGE_SIZE);
+    private volatile PageRequest activeRequest;
+    private volatile PageRequest failedInitialRequest;
 
     public HistoryViewModel(GetReceiptsPagedUseCase getReceiptsPagedUseCase,
                             GetAllItemsPagedUseCase getAllItemsPagedUseCase,
@@ -54,7 +56,8 @@ public class HistoryViewModel extends ViewModel {
             return;
         }
         publish(currentState.selectMode(mode));
-        loadData();
+        HistoryUiState.PagingState paging = currentState.getActivePaging();
+        loadPage(mode, paging.getCurrentPage(), paging.getPageSize());
     }
 
     public void nextPage() {
@@ -100,27 +103,82 @@ public class HistoryViewModel extends ViewModel {
                 paging.getCurrentPage(), paging.getPageSize());
     }
 
+    /** Loads History once for a newly created screen, without reloading retained state. */
+    public void loadInitialData() {
+        if (currentState.hasActiveSuccessfulPage()
+                || currentState.getLoadState()
+                == HistoryUiState.LoadState.INITIAL_ERROR) {
+            return;
+        }
+        HistoryUiState.PagingState paging = currentState.getActivePaging();
+        loadPage(currentState.getViewMode(),
+                paging.getCurrentPage(), paging.getPageSize());
+    }
+
+    public void refresh() {
+        loadData();
+    }
+
+    public void retry() {
+        PageRequest request = failedInitialRequest;
+        if (request == null
+                || currentState.getLoadState()
+                != HistoryUiState.LoadState.INITIAL_ERROR
+                || request.mode != currentState.getViewMode()) {
+            return;
+        }
+        loadPage(request.mode, request.page, request.pageSize);
+    }
+
     private void loadPage(HistoryUiState.ViewMode mode, int page, int pageSize) {
+        PageRequest existing = activeRequest;
+        if (existing != null && existing.matches(mode, page, pageSize)) {
+            return;
+        }
+
         long requestId = requestSequence.incrementAndGet();
-        publish(currentState.startLoading(page, pageSize));
+        PageRequest request = new PageRequest(requestId, mode, page, pageSize);
+        HistoryUiState stateBeforeRequest = currentState;
+        HistoryUiState.PagingState successfulPaging =
+                stateBeforeRequest.getPaging(mode);
+        HistoryUiState.LoadState loadingState;
+        if (!successfulPaging.hasLoaded()) {
+            loadingState = HistoryUiState.LoadState.INITIAL_LOADING;
+        } else if (page == successfulPaging.getCurrentPage()
+                && pageSize == successfulPaging.getPageSize()) {
+            loadingState = HistoryUiState.LoadState.REFRESHING;
+        } else {
+            loadingState = HistoryUiState.LoadState.PAGE_CHANGING;
+        }
+        activeRequest = request;
+        failedInitialRequest = null;
+        publish(stateBeforeRequest.startLoading(loadingState));
 
         ioExecutor.execute(() -> {
             try {
                 if (mode == HistoryUiState.ViewMode.RECEIPTS) {
                     PageResult<Receipt> result =
                             getReceiptsPagedUseCase.execute(page, pageSize);
-                    if (requestId != requestSequence.get()) return;
+                    if (!isCurrent(request)) return;
+                    activeRequest = null;
                     publish(currentState.withReceiptPage(result));
                 } else {
                     PageResult<ReceiptItemSummary> result =
                             getAllItemsPagedUseCase.execute(page, pageSize);
-                    if (requestId != requestSequence.get()) return;
+                    if (!isCurrent(request)) return;
+                    activeRequest = null;
                     publish(currentState.withItemPage(result));
                 }
             } catch (Exception exception) {
-                if (requestId == requestSequence.get()) {
-                    publish(currentState.withError(
-                            "Failed to load history: " + safeMessage(exception)));
+                if (isCurrent(request)) {
+                    activeRequest = null;
+                    if (successfulPaging.hasLoaded()) {
+                        publish(stateBeforeRequest.settle());
+                    } else {
+                        failedInitialRequest = request;
+                        publish(currentState.withInitialError(
+                                safeMessage(exception)));
+                    }
                 }
             }
         });
@@ -133,10 +191,17 @@ public class HistoryViewModel extends ViewModel {
                 deleteUseCase.execute(receiptId);
                 loadData();
             } catch (Exception exception) {
-                publish(currentState.withError(
-                        "Delete failed: " + safeMessage(exception)));
+                if (!currentState.hasActiveSuccessfulPage()) {
+                    publish(currentState.withInitialError(
+                            safeMessage(exception)));
+                }
             }
         });
+    }
+
+    private boolean isCurrent(PageRequest request) {
+        return request.id == requestSequence.get()
+                && activeRequest == request;
     }
 
     private void publish(HistoryUiState state) {
@@ -155,5 +220,30 @@ public class HistoryViewModel extends ViewModel {
             if (pageSize == supported) return true;
         }
         return false;
+    }
+
+    private static final class PageRequest {
+        private final long id;
+        private final HistoryUiState.ViewMode mode;
+        private final int page;
+        private final int pageSize;
+
+        private PageRequest(long id,
+                            HistoryUiState.ViewMode mode,
+                            int page,
+                            int pageSize) {
+            this.id = id;
+            this.mode = mode;
+            this.page = page;
+            this.pageSize = pageSize;
+        }
+
+        private boolean matches(HistoryUiState.ViewMode otherMode,
+                                int otherPage,
+                                int otherPageSize) {
+            return mode == otherMode
+                    && page == otherPage
+                    && pageSize == otherPageSize;
+        }
     }
 }

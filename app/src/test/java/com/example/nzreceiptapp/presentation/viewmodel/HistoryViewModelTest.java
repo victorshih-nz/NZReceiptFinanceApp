@@ -1,6 +1,9 @@
 package com.example.nzreceiptapp.presentation.viewmodel;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -21,7 +24,9 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executor;
 
 public class HistoryViewModelTest {
 
@@ -120,6 +125,130 @@ public class HistoryViewModelTest {
         assertEquals(Collections.emptyList(), state().getReceipts());
         assertEquals(HistoryUiState.LoadState.EMPTY, state().getLoadState());
         assertPaging(1, 15, 1, false, false);
+    }
+
+    @Test
+    public void loadInitialData_ignoresEquivalentRequestAndRetainedContent() {
+        ControlledExecutor executor = useControlledExecutor();
+        when(getReceiptsPagedUseCase.execute(1, 15))
+                .thenReturn(receiptPage("receipt-1", 1, 1));
+
+        viewModel.loadInitialData();
+        viewModel.loadInitialData();
+
+        assertEquals(1, executor.size());
+        assertEquals(HistoryUiState.LoadState.INITIAL_LOADING,
+                state().getLoadState());
+
+        executor.runNext();
+        viewModel.loadInitialData();
+
+        assertEquals(0, executor.size());
+        verify(getReceiptsPagedUseCase).execute(1, 15);
+    }
+
+    @Test
+    public void initialFailure_retryRepeatsExactRequestAndShowsContent() {
+        ControlledExecutor executor = useControlledExecutor();
+        when(getReceiptsPagedUseCase.execute(1, 15))
+                .thenThrow(new IllegalStateException("Database unavailable"))
+                .thenReturn(receiptPage("receipt-1", 1, 1));
+
+        viewModel.loadInitialData();
+        executor.runNext();
+
+        assertEquals(HistoryUiState.LoadState.INITIAL_ERROR,
+                state().getLoadState());
+        assertEquals("Database unavailable", state().getErrorMessage());
+        assertFalse(state().hasActiveSuccessfulPage());
+
+        viewModel.retry();
+        assertEquals(HistoryUiState.LoadState.INITIAL_LOADING,
+                state().getLoadState());
+        executor.runNext();
+
+        assertEquals(HistoryUiState.LoadState.CONTENT,
+                state().getLoadState());
+        assertEquals("receipt-1", state().getReceipts().get(0).getId());
+        assertNull(state().getErrorMessage());
+        verify(getReceiptsPagedUseCase, times(2)).execute(1, 15);
+    }
+
+    @Test
+    public void failedRefresh_preservesLastSuccessfulPage() {
+        ControlledExecutor executor = useControlledExecutor();
+        when(getReceiptsPagedUseCase.execute(1, 15))
+                .thenReturn(receiptPage("receipt-1", 1, 16))
+                .thenThrow(new IllegalStateException("Refresh unavailable"));
+
+        viewModel.loadInitialData();
+        executor.runNext();
+        viewModel.refresh();
+
+        assertEquals(HistoryUiState.LoadState.REFRESHING,
+                state().getLoadState());
+        assertEquals("receipt-1", state().getReceipts().get(0).getId());
+        assertPaging(1, 15, 2, false, true);
+
+        executor.runNext();
+
+        assertEquals(HistoryUiState.LoadState.CONTENT,
+                state().getLoadState());
+        assertEquals("receipt-1", state().getReceipts().get(0).getId());
+        assertPaging(1, 15, 2, false, true);
+        assertNull(state().getErrorMessage());
+    }
+
+    @Test
+    public void failedPageChange_restoresSuccessfulPageAndControls() {
+        ControlledExecutor executor = useControlledExecutor();
+        when(getReceiptsPagedUseCase.execute(1, 15))
+                .thenReturn(receiptPage("receipt-1", 1, 16));
+        when(getReceiptsPagedUseCase.execute(2, 15))
+                .thenThrow(new IllegalStateException("Page unavailable"));
+
+        viewModel.loadInitialData();
+        executor.runNext();
+        viewModel.nextPage();
+
+        assertEquals(HistoryUiState.LoadState.PAGE_CHANGING,
+                state().getLoadState());
+        assertEquals("receipt-1", state().getReceipts().get(0).getId());
+        assertPaging(1, 15, 2, false, true);
+
+        executor.runNext();
+
+        assertEquals(HistoryUiState.LoadState.CONTENT,
+                state().getLoadState());
+        assertEquals("receipt-1", state().getReceipts().get(0).getId());
+        assertPaging(1, 15, 2, false, true);
+    }
+
+    @Test
+    public void staleResult_cannotReplaceNewerSelectedMode() {
+        ControlledExecutor executor = useControlledExecutor();
+        when(getReceiptsPagedUseCase.execute(1, 15))
+                .thenReturn(receiptPage("stale-receipt", 1, 1));
+        when(getAllItemsPagedUseCase.execute(1, 30)).thenReturn(
+                new PageResult<>(Collections.emptyList(), 1, 30, 0));
+
+        viewModel.loadInitialData();
+        viewModel.setViewMode(HistoryUiState.ViewMode.ALL_ITEMS);
+
+        assertEquals(2, executor.size());
+        executor.runAt(1);
+        assertEquals(HistoryUiState.ViewMode.ALL_ITEMS,
+                state().getViewMode());
+        assertEquals(HistoryUiState.LoadState.EMPTY,
+                state().getLoadState());
+
+        executor.runAt(0);
+
+        assertEquals(HistoryUiState.ViewMode.ALL_ITEMS,
+                state().getViewMode());
+        assertEquals(HistoryUiState.LoadState.EMPTY,
+                state().getLoadState());
+        assertTrue(state().getReceipts().isEmpty());
     }
 
     @Test
@@ -242,6 +371,16 @@ public class HistoryViewModelTest {
         return viewModel.getUiState().getValue();
     }
 
+    private ControlledExecutor useControlledExecutor() {
+        ControlledExecutor executor = new ControlledExecutor();
+        viewModel = new HistoryViewModel(
+                getReceiptsPagedUseCase,
+                getAllItemsPagedUseCase,
+                deleteUseCase,
+                executor);
+        return executor;
+    }
+
     private PageResult<Receipt> receiptPage(String id,
                                             int currentPage,
                                             int totalRecords) {
@@ -254,5 +393,26 @@ public class HistoryViewModelTest {
 
     private Receipt receipt(String id) {
         return new Receipt(id, null, null, null, 0, false);
+    }
+
+    private static final class ControlledExecutor implements Executor {
+        private final List<Runnable> tasks = new ArrayList<>();
+
+        @Override
+        public void execute(Runnable command) {
+            tasks.add(command);
+        }
+
+        private int size() {
+            return tasks.size();
+        }
+
+        private void runNext() {
+            runAt(0);
+        }
+
+        private void runAt(int index) {
+            tasks.remove(index).run();
+        }
     }
 }

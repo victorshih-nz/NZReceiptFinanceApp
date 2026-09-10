@@ -63,8 +63,7 @@ public class HistoryFragment extends Fragment {
         setupSwipeRefresh();
         observeViewModel();
 
-        // Initial load
-        viewModel.loadData();
+        viewModel.loadInitialData();
     }
 
     private void setupTabs() {
@@ -149,7 +148,8 @@ public class HistoryFragment extends Fragment {
     }
 
     private void setupSwipeRefresh() {
-        binding.swipeRefresh.setOnRefreshListener(() -> viewModel.loadData());
+        binding.swipeRefresh.setOnRefreshListener(viewModel::refresh);
+        binding.btnRetry.setOnClickListener(v -> viewModel.retry());
     }
 
     private void observeViewModel() {
@@ -168,9 +168,32 @@ public class HistoryFragment extends Fragment {
             itemsAdapter.submitList(state.getAllItems());
         }
 
-        binding.swipeRefresh.setRefreshing(state.isLoading());
+        boolean initialLoading = state.getLoadState()
+                == HistoryUiState.LoadState.INITIAL_LOADING;
+        boolean initialError = state.getLoadState()
+                == HistoryUiState.LoadState.INITIAL_ERROR;
+        boolean settledContent = state.getLoadState()
+                == HistoryUiState.LoadState.CONTENT;
+        boolean settledEmpty = state.getLoadState()
+                == HistoryUiState.LoadState.EMPTY;
+        boolean contentVisible = state.hasActiveSuccessfulPage()
+                && !state.isActiveContentEmpty();
+
+        binding.recyclerView.setVisibility(contentVisible
+                ? View.VISIBLE : View.GONE);
+        binding.progressInitial.setVisibility(initialLoading
+                ? View.VISIBLE : View.GONE);
+        binding.errorContainer.setVisibility(initialError
+                ? View.VISIBLE : View.GONE);
+        binding.txtErrorMessage.setText(R.string.history_load_error_message);
+        binding.swipeRefresh.setRefreshing(state.isRefreshing());
+        binding.swipeRefresh.setEnabled(
+                (settledContent || settledEmpty) && !state.isLoading());
+        binding.txtEmpty.setText(receiptsMode
+                ? R.string.msg_no_receipts
+                : R.string.msg_no_items);
         binding.txtEmpty.setVisibility(
-                state.getLoadState() == HistoryUiState.LoadState.EMPTY
+                settledEmpty
                         && state.isActiveContentEmpty()
                         ? View.VISIBLE : View.GONE);
         renderPagingState(state.getActivePaging(), state.isLoading());
@@ -182,10 +205,6 @@ public class HistoryFragment extends Fragment {
             selectedTab.select();
         }
 
-        if (state.getErrorMessage() != null) {
-            Toast.makeText(
-                    getContext(), state.getErrorMessage(), Toast.LENGTH_LONG).show();
-        }
     }
 
     private void renderPageSize(int pageSize, boolean loading) {
