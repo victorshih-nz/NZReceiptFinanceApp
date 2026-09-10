@@ -190,14 +190,9 @@ public class HistoryFragment extends Fragment {
                 == HistoryUiState.LoadState.INITIAL_LOADING;
         boolean initialError = state.getLoadState()
                 == HistoryUiState.LoadState.INITIAL_ERROR;
-        boolean settledContent = state.getLoadState()
-                == HistoryUiState.LoadState.CONTENT;
-        boolean settledEmpty = state.getLoadState()
-                == HistoryUiState.LoadState.EMPTY;
-        boolean contentVisible = state.hasActiveSuccessfulPage()
-                && !state.isActiveContentEmpty();
+        boolean pagingControlsEnabled = state.canUsePagingControls();
 
-        binding.recyclerView.setVisibility(contentVisible
+        binding.recyclerView.setVisibility(state.shouldShowActiveContent()
                 ? View.VISIBLE : View.GONE);
         binding.progressInitial.setVisibility(initialLoading
                 ? View.VISIBLE : View.GONE);
@@ -205,17 +200,16 @@ public class HistoryFragment extends Fragment {
                 ? View.VISIBLE : View.GONE);
         binding.txtErrorMessage.setText(R.string.history_load_error_message);
         binding.swipeRefresh.setRefreshing(state.isRefreshing());
-        binding.swipeRefresh.setEnabled(
-                (settledContent || settledEmpty) && !state.isLoading());
+        binding.swipeRefresh.setEnabled(pagingControlsEnabled);
         binding.txtEmpty.setText(receiptsMode
                 ? R.string.msg_no_receipts
                 : R.string.msg_no_items);
         binding.txtEmpty.setVisibility(
-                settledEmpty
-                        && state.isActiveContentEmpty()
+                state.shouldShowActiveEmpty()
                         ? View.VISIBLE : View.GONE);
-        renderPagingState(state.getActivePaging(), state.isLoading());
-        renderPageSize(state.getActivePaging().getPageSize(), state.isLoading());
+        renderPagingState(state.getActivePaging(), pagingControlsEnabled);
+        renderPageSize(
+                state.getActivePaging().getPageSize(), pagingControlsEnabled);
 
         int tabPosition = receiptsMode ? 0 : 1;
         TabLayout.Tab selectedTab = binding.tabLayout.getTabAt(tabPosition);
@@ -225,7 +219,7 @@ public class HistoryFragment extends Fragment {
 
     }
 
-    private void renderPageSize(int pageSize, boolean loading) {
+    private void renderPageSize(int pageSize, boolean controlsEnabled) {
         int selectedPosition;
         if (pageSize == 30) {
             selectedPosition = 1;
@@ -242,17 +236,17 @@ public class HistoryFragment extends Fragment {
             binding.spinnerPageSize.post(
                     () -> updatingPageSizeSpinner = false);
         }
-        binding.spinnerPageSize.setEnabled(!loading);
+        binding.spinnerPageSize.setEnabled(controlsEnabled);
     }
 
     private void renderPagingState(HistoryUiState.PagingState state,
-                                   boolean loading) {
+                                   boolean controlsEnabled) {
         binding.txtPage.setText(getString(
                 R.string.page_indicator,
                 state.getCurrentPage(),
                 state.getTotalPages()));
-        binding.btnPrev.setEnabled(state.hasPrevious() && !loading);
-        binding.btnNext.setEnabled(state.hasNext() && !loading);
+        binding.btnPrev.setEnabled(state.hasPrevious() && controlsEnabled);
+        binding.btnNext.setEnabled(state.hasNext() && controlsEnabled);
 
         List<String> pages = new ArrayList<>();
         for (int page = 1; page <= state.getTotalPages(); page++) {
@@ -265,7 +259,8 @@ public class HistoryFragment extends Fragment {
         updatingPageSpinner = true;
         binding.spinnerPage.setAdapter(adapter);
         binding.spinnerPage.setSelection(state.getCurrentPage() - 1, false);
-        binding.spinnerPage.setEnabled(state.getTotalPages() > 1 && !loading);
+        binding.spinnerPage.setEnabled(
+                state.getTotalPages() > 1 && controlsEnabled);
         binding.spinnerPage.post(() -> updatingPageSpinner = false);
     }
 

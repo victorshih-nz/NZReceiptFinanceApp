@@ -108,6 +108,28 @@ public class HistoryUiStateTest {
         assertEquals("receipt-1", settled.getReceipts().get(0).getId());
     }
 
+    @Test
+    public void refreshingEmpty_keepsEmptyVisibleAndDisablesPaging() {
+        HistoryUiState refreshing = HistoryUiState.initial(15, 30)
+                .withReceiptPage(new PageResult<>(
+                        Collections.emptyList(), 1, 15, 0))
+                .startLoading(HistoryUiState.LoadState.REFRESHING);
+
+        assertTrue(refreshing.shouldShowActiveEmpty());
+        assertFalse(refreshing.shouldShowActiveContent());
+        assertFalse(refreshing.canUsePagingControls());
+    }
+
+    @Test
+    public void initialError_hasNoContentAndDisablesPaging() {
+        HistoryUiState error = HistoryUiState.initial(15, 30)
+                .withInitialError("Unavailable");
+
+        assertFalse(error.shouldShowActiveEmpty());
+        assertFalse(error.shouldShowActiveContent());
+        assertFalse(error.canUsePagingControls());
+    }
+
     private Receipt receipt(String id) {
         return new Receipt(id, null, null, null, 0, false);
     }

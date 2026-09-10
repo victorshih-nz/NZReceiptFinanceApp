@@ -178,6 +178,18 @@ public final class HistoryUiState {
         return getActivePaging().hasLoaded();
     }
 
+    public boolean shouldShowActiveContent() {
+        return hasActiveSuccessfulPage() && !isActiveContentEmpty();
+    }
+
+    public boolean shouldShowActiveEmpty() {
+        return hasActiveSuccessfulPage() && isActiveContentEmpty();
+    }
+
+    public boolean canUsePagingControls() {
+        return hasActiveSuccessfulPage() && !isLoading();
+    }
+
     public boolean isActiveContentEmpty() {
         return viewMode == ViewMode.ALL_ITEMS
                 ? allItems.isEmpty()
