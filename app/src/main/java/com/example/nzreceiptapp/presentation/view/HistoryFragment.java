@@ -19,8 +19,10 @@ import com.example.nzreceiptapp.databinding.FragmentHistoryBinding;
 import com.example.nzreceiptapp.di.ViewModelFactory;
 import com.example.nzreceiptapp.presentation.adapter.ReceiptAdapter;
 import com.example.nzreceiptapp.presentation.adapter.ReceiptItemSummaryAdapter;
+import com.example.nzreceiptapp.presentation.viewmodel.HistoryEffect;
 import com.example.nzreceiptapp.presentation.viewmodel.HistoryUiState;
 import com.example.nzreceiptapp.presentation.viewmodel.HistoryViewModel;
+import com.google.android.material.snackbar.Snackbar;
 import com.google.android.material.tabs.TabLayout;
 import com.example.nzreceiptapp.R;
 
@@ -155,6 +157,22 @@ public class HistoryFragment extends Fragment {
     private void observeViewModel() {
         viewModel.getUiState().observe(
                 getViewLifecycleOwner(), this::renderState);
+        viewModel.getEffect().observe(
+                getViewLifecycleOwner(), this::handleEffect);
+    }
+
+    private void handleEffect(HistoryEffect effect) {
+        if (effect == null || binding == null) {
+            return;
+        }
+        HistoryEffect.Type type = effect.consume();
+        if (type == null) {
+            return;
+        }
+        int message = type == HistoryEffect.Type.REFRESH_FAILED
+                ? R.string.history_refresh_failed
+                : R.string.history_page_load_failed;
+        Snackbar.make(binding.getRoot(), message, Snackbar.LENGTH_LONG).show();
     }
 
     private void renderState(HistoryUiState state) {

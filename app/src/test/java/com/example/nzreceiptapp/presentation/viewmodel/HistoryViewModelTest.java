@@ -161,6 +161,7 @@ public class HistoryViewModelTest {
                 state().getLoadState());
         assertEquals("Database unavailable", state().getErrorMessage());
         assertFalse(state().hasActiveSuccessfulPage());
+        assertNull(viewModel.getEffect().getValue());
 
         viewModel.retry();
         assertEquals(HistoryUiState.LoadState.INITIAL_LOADING,
@@ -197,6 +198,7 @@ public class HistoryViewModelTest {
         assertEquals("receipt-1", state().getReceipts().get(0).getId());
         assertPaging(1, 15, 2, false, true);
         assertNull(state().getErrorMessage());
+        assertEffectConsumedOnce(HistoryEffect.Type.REFRESH_FAILED);
     }
 
     @Test
@@ -215,6 +217,7 @@ public class HistoryViewModelTest {
                 state().getLoadState());
         assertEquals("receipt-1", state().getReceipts().get(0).getId());
         assertPaging(1, 15, 2, false, true);
+        assertEffectConsumedOnce(HistoryEffect.Type.PAGE_LOAD_FAILED);
 
         executor.runNext();
 
@@ -369,6 +372,12 @@ public class HistoryViewModelTest {
 
     private HistoryUiState state() {
         return viewModel.getUiState().getValue();
+    }
+
+    private void assertEffectConsumedOnce(HistoryEffect.Type expected) {
+        HistoryEffect effect = viewModel.getEffect().getValue();
+        assertEquals(expected, effect.consume());
+        assertNull(effect.consume());
     }
 
     private ControlledExecutor useControlledExecutor() {

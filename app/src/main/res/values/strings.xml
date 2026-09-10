@@ -18,6 +18,8 @@
     <string name="history_loading_description">Loading history</string>
     <string name="history_error_title">Unable to load history</string>
     <string name="history_load_error_message">History data could not be loaded. Please try again.</string>
+    <string name="history_refresh_failed">Unable to refresh history. Previous results are still shown.</string>
+    <string name="history_page_load_failed">Unable to load that page. Previous results are still shown.</string>
     <string name="action_retry">Retry</string>
     <string-array name="history_page_size_choices">
         <item>15</item>

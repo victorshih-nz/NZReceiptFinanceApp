@@ -31,6 +31,8 @@ public class HistoryViewModel extends ViewModel {
 
     private final MutableLiveData<HistoryUiState> uiState =
             new MutableLiveData<>();
+    private final MutableLiveData<HistoryEffect> effect =
+            new MutableLiveData<>();
     private volatile HistoryUiState currentState = HistoryUiState.initial(
             DEFAULT_RECEIPT_PAGE_SIZE, DEFAULT_ITEM_PAGE_SIZE);
     private volatile PageRequest activeRequest;
@@ -49,6 +51,10 @@ public class HistoryViewModel extends ViewModel {
 
     public LiveData<HistoryUiState> getUiState() {
         return uiState;
+    }
+
+    public LiveData<HistoryEffect> getEffect() {
+        return effect;
     }
 
     public void setViewMode(HistoryUiState.ViewMode mode) {
@@ -174,6 +180,10 @@ public class HistoryViewModel extends ViewModel {
                     activeRequest = null;
                     if (successfulPaging.hasLoaded()) {
                         publish(stateBeforeRequest.settle());
+                        publishEffect(loadingState
+                                == HistoryUiState.LoadState.REFRESHING
+                                ? HistoryEffect.refreshFailed()
+                                : HistoryEffect.pageLoadFailed());
                     } else {
                         failedInitialRequest = request;
                         publish(currentState.withInitialError(
@@ -207,6 +217,10 @@ public class HistoryViewModel extends ViewModel {
     private void publish(HistoryUiState state) {
         currentState = state;
         uiState.postValue(state);
+    }
+
+    private void publishEffect(HistoryEffect historyEffect) {
+        effect.postValue(historyEffect);
     }
 
     private String safeMessage(Exception exception) {
