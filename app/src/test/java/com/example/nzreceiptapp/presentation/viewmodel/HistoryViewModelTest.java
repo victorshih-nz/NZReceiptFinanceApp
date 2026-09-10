@@ -217,7 +217,6 @@ public class HistoryViewModelTest {
                 state().getLoadState());
         assertEquals("receipt-1", state().getReceipts().get(0).getId());
         assertPaging(1, 15, 2, false, true);
-        assertEffectConsumedOnce(HistoryEffect.Type.PAGE_LOAD_FAILED);
 
         executor.runNext();
 
@@ -225,6 +224,7 @@ public class HistoryViewModelTest {
                 state().getLoadState());
         assertEquals("receipt-1", state().getReceipts().get(0).getId());
         assertPaging(1, 15, 2, false, true);
+        assertEffectConsumedOnce(HistoryEffect.Type.PAGE_LOAD_FAILED);
     }
 
     @Test
