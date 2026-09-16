@@ -10,6 +10,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
+import androidx.navigation.fragment.NavHostFragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.example.nzreceiptapp.NzReceiptApplication;
@@ -53,7 +54,7 @@ public class ReceiptDetailFragment extends Fragment {
         binding.rvItems.setAdapter(adapter);
         binding.toolbar.setNavigationIcon(android.R.drawable.ic_menu_revert);
         binding.toolbar.setNavigationOnClickListener(
-                ignored -> getParentFragmentManager().popBackStack()
+                ignored -> NavHostFragment.findNavController(this).navigateUp()
         );
 
         viewModel.getReceipt().observe(getViewLifecycleOwner(), this::displayReceipt);
