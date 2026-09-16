@@ -108,7 +108,7 @@ public class HistoryFragment extends Fragment {
         ArrayAdapter<CharSequence> pageSizeAdapter = ArrayAdapter.createFromResource(
                 requireContext(),
                 R.array.history_page_size_choices,
-                android.R.layout.simple_spinner_item);
+                R.layout.item_history_spinner);
         pageSizeAdapter.setDropDownViewResource(
                 android.R.layout.simple_spinner_dropdown_item);
         updatingPageSizeSpinner = true;
@@ -253,7 +253,7 @@ public class HistoryFragment extends Fragment {
             pages.add(String.valueOf(page));
         }
         ArrayAdapter<String> adapter = new ArrayAdapter<>(
-                requireContext(), android.R.layout.simple_spinner_item, pages);
+                requireContext(), R.layout.item_history_spinner, pages);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
 
         updatingPageSpinner = true;
