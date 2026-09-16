@@ -22,6 +22,8 @@
     <string name="history_refresh_failed">Unable to refresh history. Previous results are still shown.</string>
     <string name="history_page_load_failed">Unable to load that page. Previous results are still shown.</string>
     <string name="action_retry">Retry</string>
+    <string name="receipt_detail_loading_description">Loading receipt details</string>
+    <string name="receipt_detail_error_title">Unable to load receipt</string>
     <string-array name="history_page_size_choices">
         <item>15</item>
         <item>30</item>

@@ -4,8 +4,6 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Toast;
-
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
@@ -18,6 +16,7 @@ import com.example.nzreceiptapp.databinding.FragmentReceiptDetailBinding;
 import com.example.nzreceiptapp.di.ViewModelFactory;
 import com.example.nzreceiptapp.domain.model.Receipt;
 import com.example.nzreceiptapp.presentation.adapter.ReceiptItemAdapter;
+import com.example.nzreceiptapp.presentation.viewmodel.ReceiptDetailUiState;
 import com.example.nzreceiptapp.presentation.viewmodel.ReceiptDetailViewModel;
 
 import java.time.format.DateTimeFormatter;
@@ -57,15 +56,34 @@ public class ReceiptDetailFragment extends Fragment {
                 ignored -> NavHostFragment.findNavController(this).navigateUp()
         );
 
-        viewModel.getReceipt().observe(getViewLifecycleOwner(), this::displayReceipt);
-        viewModel.getErrorMessages().observe(getViewLifecycleOwner(), message -> {
-            if (message != null) {
-                Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show();
-            }
-        });
+        binding.btnRetry.setOnClickListener(ignored -> viewModel.retry());
+        viewModel.getUiState().observe(getViewLifecycleOwner(), this::renderState);
 
         String receiptId = getArguments() != null ? getArguments().getString("receiptId") : null;
         viewModel.loadReceipt(receiptId);
+    }
+
+    private void renderState(ReceiptDetailUiState state) {
+        if (state == null || binding == null) {
+            return;
+        }
+
+        boolean loading = state.getLoadState()
+                == ReceiptDetailUiState.LoadState.LOADING;
+        boolean content = state.getLoadState()
+                == ReceiptDetailUiState.LoadState.CONTENT;
+        boolean error = state.getLoadState()
+                == ReceiptDetailUiState.LoadState.ERROR;
+
+        binding.detailContent.setVisibility(content ? View.VISIBLE : View.GONE);
+        binding.progressDetail.setVisibility(loading ? View.VISIBLE : View.GONE);
+        binding.errorContainer.setVisibility(error ? View.VISIBLE : View.GONE);
+        if (error) {
+            binding.txtErrorMessage.setText(state.getErrorMessage());
+        }
+        if (content) {
+            displayReceipt(state.getReceipt());
+        }
     }
 
     private void displayReceipt(Receipt receipt) {
