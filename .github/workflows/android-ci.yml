@@ -89,11 +89,21 @@ jobs:
           java-version: '17'
           cache: gradle
 
-      - name: Run unit tests and build debug APK
+      - name: Run focused Room v3 tests
         if: steps.changes.outputs.runtime == 'true'
-        run: |
-          chmod +x gradlew
-          ./gradlew testDebugUnitTest assembleDebug
+        run: >-
+          ./gradlew testDebugUnitTest
+          --tests "com.example.nzreceiptapp.domain.model.StoreTest"
+          --tests "com.example.nzreceiptapp.data.local.entity.DatabaseEntityV3Test"
+          --stacktrace
+
+      - name: Run debug unit tests
+        if: steps.changes.outputs.runtime == 'true'
+        run: ./gradlew testDebugUnitTest --stacktrace
+
+      - name: Build debug APK
+        if: steps.changes.outputs.runtime == 'true'
+        run: ./gradlew assembleDebug --stacktrace
 
       - name: Summary
         if: always()
