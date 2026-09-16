@@ -96,7 +96,7 @@ public class HistoryFragment extends Fragment {
             }
         );
         itemsAdapter = new ReceiptItemSummaryAdapter();
-        
+
         binding.recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         // Adapter will be switched in observeViewModel
     }
