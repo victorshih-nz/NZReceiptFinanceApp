@@ -4,7 +4,6 @@ on:
   push:
     paths:
       - "app/src/main/java/com/example/nzreceiptapp/data/local/**"
-      - "app/src/main/java/com/example/nzreceiptapp/domain/model/Store.java"
       - "app/src/androidTest/**"
       - "app/schemas/**"
       - "app/build.gradle"
@@ -12,7 +11,6 @@ on:
   pull_request:
     paths:
       - "app/src/main/java/com/example/nzreceiptapp/data/local/**"
-      - "app/src/main/java/com/example/nzreceiptapp/domain/model/Store.java"
       - "app/src/androidTest/**"
       - "app/schemas/**"
       - "app/build.gradle"
@@ -103,7 +101,7 @@ jobs:
           "$ANDROID_HOME/platform-tools/adb" shell settings put global transition_animation_scale 0
           "$ANDROID_HOME/platform-tools/adb" shell settings put global animator_duration_scale 0
           ./gradlew connectedDebugAndroidTest \
-            -Pandroid.testInstrumentationRunnerArguments.class=com.example.nzreceiptapp.data.local.AppDatabaseMigrationTest \
+            -Pandroid.testInstrumentationRunnerArguments.class=com.example.nzreceiptapp.data.local.ReceiptDaoTransactionTest \
             --stacktrace
           ./gradlew connectedDebugAndroidTest --stacktrace
 

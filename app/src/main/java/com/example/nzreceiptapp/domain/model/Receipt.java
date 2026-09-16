@@ -29,7 +29,9 @@ public class Receipt {
         this.id = id;
         this.store = store;
         this.items = items;
-        this.purchaseDate = purchaseDate;
+        this.purchaseDate = purchaseDate == null
+                ? null
+                : purchaseDate.withNano(0);
         this.totalDiscountCents = totalDiscountCents;
         this.isSynced = isSynced;
         this.rawOcrText = rawOcrText;

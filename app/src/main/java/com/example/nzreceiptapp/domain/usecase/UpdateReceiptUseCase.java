@@ -5,18 +5,19 @@ import com.example.nzreceiptapp.domain.model.Receipt;
 import com.example.nzreceiptapp.domain.repository.IReceiptRepository;
 
 /**
- * 儲存收據到資料庫的 Use Case
+ * Validates and updates an existing Receipt aggregate through the repository.
  */
-public class SaveReceiptUseCase {
+public final class UpdateReceiptUseCase {
 
     private final IReceiptRepository repository;
     private final ReceiptValidator validator;
 
-    public SaveReceiptUseCase(IReceiptRepository repository) {
+    public UpdateReceiptUseCase(IReceiptRepository repository) {
         this(repository, new ReceiptValidator());
     }
 
-    public SaveReceiptUseCase(IReceiptRepository repository, ReceiptValidator validator) {
+    public UpdateReceiptUseCase(IReceiptRepository repository,
+                                ReceiptValidator validator) {
         this.repository = repository;
         this.validator = validator;
     }
@@ -26,10 +27,11 @@ public class SaveReceiptUseCase {
         if (!result.isValid()) {
             throw new ReceiptValidationException(result);
         }
-        repository.saveReceipt(receipt);
+        repository.updateReceipt(receipt);
     }
 
-    public static final class ReceiptValidationException extends IllegalArgumentException {
+    public static final class ReceiptValidationException
+            extends IllegalArgumentException {
         private final ReceiptValidator.ValidationResult validationResult;
 
         public ReceiptValidationException(

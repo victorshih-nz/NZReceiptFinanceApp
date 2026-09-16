@@ -4,12 +4,14 @@ import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule;
 
+import com.example.nzreceiptapp.domain.logic.ReceiptValidator;
 import com.example.nzreceiptapp.domain.model.Receipt;
 import com.example.nzreceiptapp.domain.model.ReceiptItem;
 import com.example.nzreceiptapp.domain.model.Store;
@@ -22,6 +24,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.ArgumentCaptor;
 
 import java.util.Collections;
 
@@ -47,28 +50,10 @@ public class ScannerViewModelTest {
 
     @Test
     public void testProcessReceiptImage_Success() {
-        // 1. Mock OCR Success
-        doAnswer(invocation -> {
-            IOCRService.OnOCRCompleteListener listener = invocation.getArgument(1);
-            listener.onSuccess("Mock Text");
-            return null;
-        }).when(ocrService).extractText(anyString(), any());
+        Receipt mockReceipt = prepareReadyReceipt();
 
-        // 2. Mock Parsing Success
-        ReceiptItem item = new ReceiptItem(
-                "item", "raw", "Milk", 1, "ea", 399,
-                Collections.emptyList(), null, false);
-        Receipt mockReceipt = new Receipt(
-                "id", new Store("store", "Woolworths", "Albany"),
-                Collections.singletonList(item), null, 0, false,
-                "Mock Text", "path", 399L);
-        when(parseUseCase.execute(anyString(), anyString(), anyString(), any(), anyString()))
-                .thenReturn(mockReceipt);
-
-        // 3. Execute
         viewModel.processReceiptImage("path", "Woolworths", "Albany");
 
-        // 4. Verify
         assertEquals(ScannerUiState.Phase.READY_FOR_REVIEW,
                 viewModel.getUiState().getValue().getPhase());
         assertEquals(mockReceipt, viewModel.getUiState().getValue().getDraft());
@@ -80,6 +65,46 @@ public class ScannerViewModelTest {
         assertEquals(ScannerUiState.Phase.SAVED,
                 viewModel.getUiState().getValue().getPhase());
         verify(saveUseCase).execute(any(Receipt.class));
+    }
+
+    @Test
+    public void saveReviewedReceipt_withBlankBranch_savesEmptyBranch() {
+        Receipt draft = prepareReadyReceipt();
+        viewModel.processReceiptImage("path", "Woolworths", "Albany");
+
+        viewModel.saveReviewedReceipt("Woolworths", "   ", draft.getItems());
+
+        ArgumentCaptor<Receipt> captor = ArgumentCaptor.forClass(Receipt.class);
+        verify(saveUseCase).execute(captor.capture());
+        assertEquals("", captor.getValue().getStore().getBranchName());
+        assertEquals(ScannerUiState.Phase.SAVED,
+                viewModel.getUiState().getValue().getPhase());
+    }
+
+    @Test
+    public void saveReviewedReceipt_validationFailure_keepsDraftAndReportsError() {
+        Receipt draft = prepareReadyReceipt();
+        viewModel.processReceiptImage("path", "Woolworths", "Albany");
+        Receipt invalidReceipt = new Receipt(
+                "invalid",
+                new Store("store", "!!!", ""),
+                draft.getItems(),
+                draft.getPurchaseDate(),
+                0,
+                false);
+        ReceiptValidator.ValidationResult validationResult =
+                new ReceiptValidator().validate(invalidReceipt);
+        doThrow(new SaveReceiptUseCase.ReceiptValidationException(validationResult))
+                .when(saveUseCase).execute(any(Receipt.class));
+
+        viewModel.saveReviewedReceipt("!!!", "", draft.getItems());
+
+        assertEquals(ScannerUiState.Phase.ERROR,
+                viewModel.getUiState().getValue().getPhase());
+        assertEquals("Store chain is required",
+                viewModel.getUiState().getValue().getErrorMessage());
+        assertEquals("!!!", viewModel.getUiState().getValue()
+                .getDraft().getStore().getChainName());
     }
 
     @Test
@@ -99,5 +124,24 @@ public class ScannerViewModelTest {
                 viewModel.getUiState().getValue().getPhase());
         assertEquals("OCR failed: OCR Error",
                 viewModel.getUiState().getValue().getErrorMessage());
+    }
+
+    private Receipt prepareReadyReceipt() {
+        doAnswer(invocation -> {
+            IOCRService.OnOCRCompleteListener listener = invocation.getArgument(1);
+            listener.onSuccess("Mock Text");
+            return null;
+        }).when(ocrService).extractText(anyString(), any());
+
+        ReceiptItem item = new ReceiptItem(
+                "item", "raw", "Milk", 1, "ea", 399,
+                Collections.emptyList(), null, false);
+        Receipt receipt = new Receipt(
+                "id", new Store("store", "Woolworths", "Albany"),
+                Collections.singletonList(item), null, 0, false,
+                "Mock Text", "path", 399L);
+        when(parseUseCase.execute(anyString(), anyString(), anyString(), any(), anyString()))
+                .thenReturn(receipt);
+        return receipt;
     }
 }

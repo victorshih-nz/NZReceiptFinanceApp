@@ -11,6 +11,7 @@ import com.example.nzreceiptapp.data.local.entity.ReceiptWithItems;
 import com.example.nzreceiptapp.data.local.entity.StoreEntity;
 import com.example.nzreceiptapp.domain.model.Category;
 import com.example.nzreceiptapp.domain.model.ItemDiscount;
+import com.example.nzreceiptapp.domain.model.PageResult;
 import com.example.nzreceiptapp.domain.model.Receipt;
 import com.example.nzreceiptapp.domain.model.ReceiptItem;
 import com.example.nzreceiptapp.domain.model.ReceiptItemSummary;
@@ -18,10 +19,16 @@ import com.example.nzreceiptapp.domain.model.Store;
 import com.example.nzreceiptapp.domain.repository.IReceiptRepository;
 import com.example.nzreceiptapp.domain.service.IReceiptImageStore;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class ReceiptRepositoryImpl implements IReceiptRepository {
+    private static final Logger LOGGER =
+            Logger.getLogger(ReceiptRepositoryImpl.class.getName());
+
     private final ReceiptDao receiptDao;
     private final IReceiptImageStore imageStore;
 
@@ -39,59 +46,21 @@ public class ReceiptRepositoryImpl implements IReceiptRepository {
 
     @Override
     public void saveReceipt(Receipt receipt) {
-        // 1. Map Store
-        Store store = receipt.getStore();
-        StoreEntity storeEntity = new StoreEntity(store.getId(), store.getChainName(), store.getBranchName());
+        ReceiptWriteData data = mapForWrite(receipt);
+        receiptDao.saveFullReceipt(
+                data.store, data.receipt, data.items, data.discounts);
+    }
 
-        // 2. Map Receipt
-        ReceiptEntity receiptEntity = new ReceiptEntity(
-                receipt.getId(),
-                store.getId(),
-                receipt.getPurchaseDate(),
-                receipt.getTotalDiscountCents(),
-                receipt.isSynced(),
-                receipt.getRawOcrText(),
-                receipt.getImageUri(),
-                receipt.getPrintedTotalCents()
-        );
-
-        // 3. Map Items and Discounts
-        List<ReceiptItemEntity> itemEntities = new ArrayList<>();
-        List<ItemDiscountEntity> discountEntities = new ArrayList<>();
-
-        for (ReceiptItem item : receipt.getItems()) {
-            String categoryId = item.getCategory() != null ? item.getCategory().getId() : null;
-            itemEntities.add(new ReceiptItemEntity(
-                    item.getId(),
-                    receipt.getId(),
-                    item.getRawName(),
-                    item.getCleanedName(),
-                    item.getQuantity(),
-                    item.getUnit(),
-                    item.getUnitPriceCents(),
-                    categoryId,
-                    item.getSpecialMk()
-            ));
-
-            if (item.getDiscounts() != null) {
-                for (ItemDiscount discount : item.getDiscounts()) {
-                    discountEntities.add(new ItemDiscountEntity(
-                            item.getId(),
-                            discount.getType(),
-                            discount.getDescription(),
-                            discount.getAmountCents()
-                    ));
-                }
-            }
-        }
-
-        // 4. Save via Transaction
-        receiptDao.saveFullReceipt(storeEntity, receiptEntity, itemEntities, discountEntities);
+    @Override
+    public void updateReceipt(Receipt receipt) {
+        ReceiptWriteData data = mapForWrite(receipt);
+        receiptDao.updateFullReceipt(
+                data.store, data.receipt, data.items, data.discounts);
     }
 
     @Override
     public List<Receipt> getAllReceipts() {
-        return getReceiptsPaged(Integer.MAX_VALUE, 0);
+        return mapReceipts(receiptDao.getReceiptsPaged(Integer.MAX_VALUE, 0));
     }
 
     @Override
@@ -101,8 +70,17 @@ public class ReceiptRepositoryImpl implements IReceiptRepository {
     }
 
     @Override
-    public List<Receipt> getReceiptsPaged(int limit, int offset) {
-        List<ReceiptWithItems> entities = receiptDao.getReceiptsPaged(limit, offset);
+    public PageResult<Receipt> getReceiptsPage(int pageNumber, int pageSize) {
+        ReceiptDao.PageData<ReceiptWithItems> pageData =
+                receiptDao.getReceiptsPage(pageNumber, pageSize);
+        return new PageResult<>(
+                mapReceipts(pageData.getRows()),
+                pageData.getCurrentPage(),
+                pageSize,
+                pageData.getTotalRecords());
+    }
+
+    private List<Receipt> mapReceipts(List<ReceiptWithItems> entities) {
         List<Receipt> domainReceipts = new ArrayList<>();
         for (ReceiptWithItems entity : entities) {
             domainReceipts.add(mapToDomain(entity));
@@ -111,13 +89,17 @@ public class ReceiptRepositoryImpl implements IReceiptRepository {
     }
 
     @Override
-    public int getReceiptsCount() {
-        return receiptDao.countReceipts();
+    public PageResult<ReceiptItemSummary> getAllItemsPage(int pageNumber, int pageSize) {
+        ReceiptDao.PageData<ReceiptItemRow> pageData =
+                receiptDao.getAllItemsPage(pageNumber, pageSize);
+        return new PageResult<>(
+                mapItemSummaries(pageData.getRows()),
+                pageData.getCurrentPage(),
+                pageSize,
+                pageData.getTotalRecords());
     }
 
-    @Override
-    public List<ReceiptItemSummary> getAllItemsPaged(int limit, int offset) {
-        List<ReceiptItemRow> entities = receiptDao.getAllItemsPaged(limit, offset);
+    private List<ReceiptItemSummary> mapItemSummaries(List<ReceiptItemRow> entities) {
         List<ReceiptItemSummary> result = new ArrayList<>();
         for (ReceiptItemRow row : entities) {
             ReceiptItem item = mapItemToDomain(row.item, row.discounts, row.category);
@@ -127,10 +109,27 @@ public class ReceiptRepositoryImpl implements IReceiptRepository {
     }
 
     @Override
+    public List<Receipt> findDuplicateCandidates(String normalizedChain,
+                                                 LocalDateTime hourStart,
+                                                 LocalDateTime hourEnd) {
+        return mapReceipts(receiptDao.getReceiptsInPurchaseHour(
+                normalizedChain, hourStart, hourEnd));
+    }
+
+    @Override
     public void deleteReceipt(String id) {
         ReceiptWithItems existing = receiptDao.getReceiptById(id);
         receiptDao.deleteReceiptAndUnusedStore(id);
-        if (existing != null) imageStore.delete(existing.receipt.imageUri);
+        if (existing == null || existing.receipt.imageUri == null) {
+            return;
+        }
+        try {
+            imageStore.delete(existing.receipt.imageUri);
+        } catch (RuntimeException cleanupFailure) {
+            LOGGER.log(Level.WARNING,
+                    "Receipt database row was deleted, but image cleanup failed",
+                    cleanupFailure);
+        }
     }
 
     private ReceiptItem mapItemToDomain(ReceiptItemEntity itemEntity, List<ItemDiscountEntity> discountEntities, CategoryEntity categoryEntity) {
@@ -187,5 +186,64 @@ public class ReceiptRepositoryImpl implements IReceiptRepository {
                 entity.receipt.imageUri,
                 entity.receipt.printedTotalCents
         );
+    }
+
+    private ReceiptWriteData mapForWrite(Receipt receipt) {
+        Store store = receipt.getStore();
+        StoreEntity storeEntity = new StoreEntity(
+                store.getId(), store.getChainName(), store.getBranchName());
+        ReceiptEntity receiptEntity = new ReceiptEntity(
+                receipt.getId(),
+                store.getId(),
+                receipt.getPurchaseDate(),
+                receipt.getTotalDiscountCents(),
+                receipt.isSynced(),
+                receipt.getRawOcrText(),
+                receipt.getImageUri(),
+                receipt.getPrintedTotalCents());
+        List<ReceiptItemEntity> itemEntities = new ArrayList<>();
+        List<ItemDiscountEntity> discountEntities = new ArrayList<>();
+        for (ReceiptItem item : receipt.getItems()) {
+            String categoryId = item.getCategory() != null
+                    ? item.getCategory().getId() : null;
+            itemEntities.add(new ReceiptItemEntity(
+                    item.getId(),
+                    receipt.getId(),
+                    item.getRawName(),
+                    item.getCleanedName(),
+                    item.getQuantity(),
+                    item.getUnit(),
+                    item.getUnitPriceCents(),
+                    categoryId,
+                    item.getSpecialMk()));
+            if (item.getDiscounts() != null) {
+                for (ItemDiscount discount : item.getDiscounts()) {
+                    discountEntities.add(new ItemDiscountEntity(
+                            item.getId(),
+                            discount.getType(),
+                            discount.getDescription(),
+                            discount.getAmountCents()));
+                }
+            }
+        }
+        return new ReceiptWriteData(
+                storeEntity, receiptEntity, itemEntities, discountEntities);
+    }
+
+    private static final class ReceiptWriteData {
+        private final StoreEntity store;
+        private final ReceiptEntity receipt;
+        private final List<ReceiptItemEntity> items;
+        private final List<ItemDiscountEntity> discounts;
+
+        private ReceiptWriteData(StoreEntity store,
+                                 ReceiptEntity receipt,
+                                 List<ReceiptItemEntity> items,
+                                 List<ItemDiscountEntity> discounts) {
+            this.store = store;
+            this.receipt = receipt;
+            this.items = items;
+            this.discounts = discounts;
+        }
     }
 }

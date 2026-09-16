@@ -4,6 +4,8 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -16,16 +18,27 @@ import com.example.nzreceiptapp.NzReceiptApplication;
 import com.example.nzreceiptapp.databinding.FragmentHistoryBinding;
 import com.example.nzreceiptapp.di.ViewModelFactory;
 import com.example.nzreceiptapp.presentation.adapter.ReceiptAdapter;
+import com.example.nzreceiptapp.presentation.adapter.ReceiptItemSummaryAdapter;
+import com.example.nzreceiptapp.presentation.viewmodel.HistoryEffect;
+import com.example.nzreceiptapp.presentation.viewmodel.HistoryUiState;
 import com.example.nzreceiptapp.presentation.viewmodel.HistoryViewModel;
+import com.google.android.material.snackbar.Snackbar;
+import com.google.android.material.tabs.TabLayout;
 import com.example.nzreceiptapp.R;
 
 import androidx.navigation.Navigation;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class HistoryFragment extends Fragment {
 
     private FragmentHistoryBinding binding;
     private HistoryViewModel viewModel;
     private ReceiptAdapter receiptAdapter;
+    private ReceiptItemSummaryAdapter itemsAdapter;
+    private boolean updatingPageSpinner;
+    private boolean updatingPageSizeSpinner;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -46,12 +59,28 @@ public class HistoryFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
+        setupTabs();
         setupRecyclerView();
         setupPagination();
         setupSwipeRefresh();
         observeViewModel();
 
-        viewModel.loadData();
+        viewModel.loadInitialData();
+    }
+
+    private void setupTabs() {
+        binding.tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
+            @Override
+            public void onTabSelected(TabLayout.Tab tab) {
+                if (tab.getPosition() == 0) {
+                    viewModel.setViewMode(HistoryUiState.ViewMode.RECEIPTS);
+                } else {
+                    viewModel.setViewMode(HistoryUiState.ViewMode.ALL_ITEMS);
+                }
+            }
+            @Override public void onTabUnselected(TabLayout.Tab tab) {}
+            @Override public void onTabReselected(TabLayout.Tab tab) {}
+        });
     }
 
     private void setupRecyclerView() {
@@ -66,124 +95,172 @@ public class HistoryFragment extends Fragment {
                 Toast.makeText(getContext(), "Receipt deleted", Toast.LENGTH_SHORT).show();
             }
         );
-
+        itemsAdapter = new ReceiptItemSummaryAdapter();
+        
         binding.recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
-        binding.recyclerView.setAdapter(receiptAdapter);
+        // Adapter will be switched in observeViewModel
     }
-
-    private boolean pageSelectorProgrammatic = false;
-    private boolean pageSizeProgrammatic = false;
 
     private void setupPagination() {
         binding.btnPrev.setOnClickListener(v -> viewModel.prevPage());
         binding.btnNext.setOnClickListener(v -> viewModel.nextPage());
 
-        // Setup page size spinner if it exists in the layout
-        if (binding.pageSizeSpinner != null) {
-            binding.pageSizeSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
-                @Override
-                public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
-                    if (pageSizeProgrammatic) return; // ignore programmatic changes
-                    int[] sizes = {15, 30, 50};
-                    int selected = sizes[position];
-                    // avoid calling setPageSize if it's the same
-                    Integer current = viewModel.getPageSize().getValue();
-                    if (current != null && current == selected) return;
-                    viewModel.setPageSize(selected);
-                }
+        ArrayAdapter<CharSequence> pageSizeAdapter = ArrayAdapter.createFromResource(
+                requireContext(),
+                R.array.history_page_size_choices,
+                R.layout.item_history_spinner);
+        pageSizeAdapter.setDropDownViewResource(
+                android.R.layout.simple_spinner_dropdown_item);
+        updatingPageSizeSpinner = true;
+        binding.spinnerPageSize.setAdapter(pageSizeAdapter);
+        binding.spinnerPageSize.setOnItemSelectedListener(
+                new AdapterView.OnItemSelectedListener() {
+                    @Override
+                    public void onItemSelected(AdapterView<?> parent,
+                                               View view,
+                                               int position,
+                                               long id) {
+                        if (!updatingPageSizeSpinner) {
+                            int pageSize = Integer.parseInt(
+                                    parent.getItemAtPosition(position).toString());
+                            viewModel.setPageSize(pageSize);
+                        }
+                    }
 
-                @Override
-                public void onNothingSelected(android.widget.AdapterView<?> parent) {}
-            });
-        }
+                    @Override
+                    public void onNothingSelected(AdapterView<?> parent) { }
+                });
+        binding.spinnerPageSize.post(() -> updatingPageSizeSpinner = false);
 
-        // page selector
-        if (binding.pageSelector != null) {
-            binding.pageSelector.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
-                @Override
-                public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) {
-                    if (pageSelectorProgrammatic) return; // ignore programmatic selection changes
-                    // position is 0-based; pages are 0-based internally
-                    Integer cur = viewModel.getCurrentPage().getValue();
-                    if (cur != null && cur == position) return; // no-op selecting current
-                    viewModel.goToPage(position);
-                }
+        binding.spinnerPage.setOnItemSelectedListener(
+                new AdapterView.OnItemSelectedListener() {
+                    @Override
+                    public void onItemSelected(AdapterView<?> parent,
+                                               View view,
+                                               int position,
+                                               long id) {
+                        if (!updatingPageSpinner) {
+                            viewModel.goToPage(position + 1);
+                        }
+                    }
 
-                @Override
-                public void onNothingSelected(android.widget.AdapterView<?> parent) {}
-            });
-        }
+                    @Override
+                    public void onNothingSelected(AdapterView<?> parent) { }
+                });
     }
 
     private void setupSwipeRefresh() {
-        binding.swipeRefresh.setOnRefreshListener(() -> viewModel.loadData());
-    }
-
-    private void renderPagination(Integer curPage, Integer totalPagesVal) {
-        int total = totalPagesVal != null ? totalPagesVal : 1;
-        binding.txtTotalPages.setText("/ " + total);
-        binding.btnPrev.setEnabled(curPage != null && curPage > 0);
-        binding.btnNext.setEnabled(curPage != null && totalPagesVal != null && (curPage + 1 < totalPagesVal));
-
-        // populate page selector entries
-        if (binding.pageSelector != null && totalPagesVal != null) {
-            java.util.List<String> pages = new java.util.ArrayList<>();
-            for (int i = 1; i <= totalPagesVal; i++) pages.add(String.valueOf(i));
-            android.widget.ArrayAdapter<String> adapter = new android.widget.ArrayAdapter<>(
-                    requireContext(), android.R.layout.simple_spinner_item, pages);
-            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-
-            // avoid firing listener while programmatically changing adapter/selection
-            pageSelectorProgrammatic = true;
-            binding.pageSelector.setAdapter(adapter);
-
-            Integer cur = curPage != null ? curPage : 0;
-            if (cur >= 0 && cur < totalPagesVal) {
-                binding.pageSelector.setSelection(cur);
-            }
-            pageSelectorProgrammatic = false;
-        }
+        binding.swipeRefresh.setOnRefreshListener(viewModel::refresh);
+        binding.btnRetry.setOnClickListener(v -> viewModel.retry());
     }
 
     private void observeViewModel() {
-        viewModel.getReceipts().observe(getViewLifecycleOwner(), receipts -> {
-            receiptAdapter.submitList(receipts);
-            binding.txtEmpty.setVisibility((receipts == null || receipts.isEmpty()) ? View.VISIBLE : View.GONE);
-        });
+        viewModel.getUiState().observe(
+                getViewLifecycleOwner(), this::renderState);
+        viewModel.getEffect().observe(
+                getViewLifecycleOwner(), this::handleEffect);
+    }
 
-        viewModel.getCurrentPage().observe(getViewLifecycleOwner(), page -> {
-            Integer total = viewModel.getTotalPages().getValue();
-            renderPagination(page, total);
-        });
+    private void handleEffect(HistoryEffect effect) {
+        if (effect == null || binding == null) {
+            return;
+        }
+        HistoryEffect.Type type = effect.consume();
+        if (type == null) {
+            return;
+        }
+        int message = type == HistoryEffect.Type.REFRESH_FAILED
+                ? R.string.history_refresh_failed
+                : R.string.history_page_load_failed;
+        Snackbar.make(binding.getRoot(), message, Snackbar.LENGTH_LONG).show();
+    }
 
-        viewModel.getPageSize().observe(getViewLifecycleOwner(), size -> {
-            if (size != null && binding.pageSizeSpinner != null) {
-                int[] sizes = {15, 30, 50};
-                pageSizeProgrammatic = true;
-                for (int i = 0; i < sizes.length; i++) {
-                    if (sizes[i] == size) {
-                        binding.pageSizeSpinner.setSelection(i);
-                        break;
-                    }
-                }
-                pageSizeProgrammatic = false;
-            }
-        });
+    private void renderState(HistoryUiState state) {
+        boolean receiptsMode =
+                state.getViewMode() == HistoryUiState.ViewMode.RECEIPTS;
+        if (receiptsMode) {
+            binding.recyclerView.setAdapter(receiptAdapter);
+            receiptAdapter.submitList(state.getReceipts());
+        } else {
+            binding.recyclerView.setAdapter(itemsAdapter);
+            itemsAdapter.submitList(state.getAllItems());
+        }
 
-        viewModel.getTotalPages().observe(getViewLifecycleOwner(), total -> {
-            Integer cur = viewModel.getCurrentPage().getValue();
-            renderPagination(cur, total);
-        });
+        boolean initialLoading = state.getLoadState()
+                == HistoryUiState.LoadState.INITIAL_LOADING;
+        boolean initialError = state.getLoadState()
+                == HistoryUiState.LoadState.INITIAL_ERROR;
+        boolean pagingControlsEnabled = state.canUsePagingControls();
 
-        viewModel.getIsLoading().observe(getViewLifecycleOwner(), isLoading -> {
-            binding.swipeRefresh.setRefreshing(isLoading != null && isLoading);
-        });
+        binding.recyclerView.setVisibility(state.shouldShowActiveContent()
+                ? View.VISIBLE : View.GONE);
+        binding.progressInitial.setVisibility(initialLoading
+                ? View.VISIBLE : View.GONE);
+        binding.errorContainer.setVisibility(initialError
+                ? View.VISIBLE : View.GONE);
+        binding.txtErrorMessage.setText(R.string.history_load_error_message);
+        binding.swipeRefresh.setRefreshing(state.isRefreshing());
+        binding.swipeRefresh.setEnabled(pagingControlsEnabled);
+        binding.txtEmpty.setText(receiptsMode
+                ? R.string.msg_no_receipts
+                : R.string.msg_no_items);
+        binding.txtEmpty.setVisibility(
+                state.shouldShowActiveEmpty()
+                        ? View.VISIBLE : View.GONE);
+        renderPagingState(state.getActivePaging(), pagingControlsEnabled);
+        renderPageSize(
+                state.getActivePaging().getPageSize(), pagingControlsEnabled);
 
-        viewModel.getErrorMessages().observe(getViewLifecycleOwner(), error -> {
-            if (error != null) {
-                Toast.makeText(getContext(), error, Toast.LENGTH_LONG).show();
-            }
-        });
+        int tabPosition = receiptsMode ? 0 : 1;
+        TabLayout.Tab selectedTab = binding.tabLayout.getTabAt(tabPosition);
+        if (selectedTab != null && !selectedTab.isSelected()) {
+            selectedTab.select();
+        }
+
+    }
+
+    private void renderPageSize(int pageSize, boolean controlsEnabled) {
+        int selectedPosition;
+        if (pageSize == 30) {
+            selectedPosition = 1;
+        } else if (pageSize == 50) {
+            selectedPosition = 2;
+        } else {
+            selectedPosition = 0;
+        }
+
+        if (binding.spinnerPageSize.getSelectedItemPosition()
+                != selectedPosition) {
+            updatingPageSizeSpinner = true;
+            binding.spinnerPageSize.setSelection(selectedPosition, false);
+            binding.spinnerPageSize.post(
+                    () -> updatingPageSizeSpinner = false);
+        }
+        binding.spinnerPageSize.setEnabled(controlsEnabled);
+    }
+
+    private void renderPagingState(HistoryUiState.PagingState state,
+                                   boolean controlsEnabled) {
+        binding.txtPage.setText(getString(
+                R.string.page_indicator,
+                state.getTotalPages()));
+        binding.btnPrev.setEnabled(state.hasPrevious() && controlsEnabled);
+        binding.btnNext.setEnabled(state.hasNext() && controlsEnabled);
+
+        List<String> pages = new ArrayList<>();
+        for (int page = 1; page <= state.getTotalPages(); page++) {
+            pages.add(String.valueOf(page));
+        }
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(
+                requireContext(), R.layout.item_history_spinner, pages);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+
+        updatingPageSpinner = true;
+        binding.spinnerPage.setAdapter(adapter);
+        binding.spinnerPage.setSelection(state.getCurrentPage() - 1, false);
+        binding.spinnerPage.setEnabled(
+                state.getTotalPages() > 1 && controlsEnabled);
+        binding.spinnerPage.post(() -> updatingPageSpinner = false);
     }
 
     @Override

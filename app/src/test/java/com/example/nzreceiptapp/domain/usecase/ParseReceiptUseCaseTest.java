@@ -76,8 +76,19 @@ public class ParseReceiptUseCaseTest {
                 "content://receipt");
 
         assertEquals("Woolworths", receipt.getStore().getChainName());
-        assertEquals("Unknown Branch", receipt.getStore().getBranchName());
+        assertEquals("", receipt.getStore().getBranchName());
         assertEquals("content://receipt", receipt.getImageUri());
+    }
+
+    @Test
+    public void testExecute_WhitespaceBranchBecomesEmpty() {
+        Receipt receipt = useCase.execute(
+                "Mock receipt content",
+                "Woolworths",
+                "   ",
+                LocalDateTime.of(2026, 8, 17, 12, 0));
+
+        assertEquals("", receipt.getStore().getBranchName());
     }
 
     private static class MockParserFactory implements IParserFactory {

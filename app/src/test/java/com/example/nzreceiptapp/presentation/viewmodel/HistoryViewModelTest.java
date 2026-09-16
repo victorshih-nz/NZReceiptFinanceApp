@@ -1,14 +1,20 @@
 package com.example.nzreceiptapp.presentation.viewmodel;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule;
 
+import com.example.nzreceiptapp.domain.model.PageResult;
 import com.example.nzreceiptapp.domain.model.Receipt;
 import com.example.nzreceiptapp.domain.usecase.DeleteReceiptUseCase;
-import com.example.nzreceiptapp.domain.model.PageResult;
+import com.example.nzreceiptapp.domain.usecase.GetAllItemsPagedUseCase;
 import com.example.nzreceiptapp.domain.usecase.GetReceiptsPagedUseCase;
 
 import org.junit.Before;
@@ -17,16 +23,19 @@ import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import java.util.ArrayList;
 import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executor;
 
 public class HistoryViewModelTest {
 
     @Rule
-    public InstantTaskExecutorRule instantTaskExecutorRule = new InstantTaskExecutorRule();
+    public InstantTaskExecutorRule instantTaskExecutorRule =
+            new InstantTaskExecutorRule();
 
     @Mock private GetReceiptsPagedUseCase getReceiptsPagedUseCase;
+    @Mock private GetAllItemsPagedUseCase getAllItemsPagedUseCase;
     @Mock private DeleteReceiptUseCase deleteUseCase;
 
     private HistoryViewModel viewModel;
@@ -36,215 +45,383 @@ public class HistoryViewModelTest {
         MockitoAnnotations.openMocks(this);
         viewModel = new HistoryViewModel(
                 getReceiptsPagedUseCase,
+                getAllItemsPagedUseCase,
                 deleteUseCase,
                 Runnable::run
         );
     }
 
     @Test
-    public void loadData_usesDefaultPageSize30() {
-        List<Receipt> expected = Collections.singletonList(
-                new Receipt("id", null, null, null, 0, false)
-        );
-        when(getReceiptsPagedUseCase.executeWithCount(0, 30)).thenReturn(new PageResult<>(expected, 100));
+    public void initialState_containsBothModeDefaultsInOneSnapshot() {
+        HistoryUiState state = state();
 
-        viewModel.loadData();
-
-        assertEquals(expected, viewModel.getReceipts().getValue());
-        assertEquals(Integer.valueOf(30), viewModel.getPageSize().getValue());
-        verify(getReceiptsPagedUseCase).executeWithCount(0, 30);
+        assertEquals(HistoryUiState.ViewMode.RECEIPTS, state.getViewMode());
+        assertEquals(HistoryUiState.LoadState.IDLE, state.getLoadState());
+        assertEquals(15, state.getReceiptPaging().getPageSize());
+        assertEquals(30, state.getItemPaging().getPageSize());
+        assertEquals(1, state.getReceiptPaging().getCurrentPage());
+        assertEquals(1, state.getItemPaging().getCurrentPage());
     }
 
     @Test
-    public void setPageSize_changesPageSizeAndReturnsToPage1() {
-        List<Receipt> expected = Collections.singletonList(
-                new Receipt("id", null, null, null, 0, false)
-        );
-        when(getReceiptsPagedUseCase.executeWithCount(0, 15)).thenReturn(new PageResult<>(expected, 20));
+    public void loadData_loadsOneBasedFirstReceiptPageWithDefaultSize() {
+        List<Receipt> expected = Collections.singletonList(receipt("receipt-1"));
+        when(getReceiptsPagedUseCase.execute(1, 15))
+                .thenReturn(new PageResult<>(expected, 1, 15, 16));
 
+        viewModel.loadData();
+
+        assertEquals(expected, state().getReceipts());
+        assertEquals(HistoryUiState.LoadState.CONTENT, state().getLoadState());
+        assertPaging(1, 15, 2, false, true);
+        verify(getReceiptsPagedUseCase).execute(1, 15);
+    }
+
+    @Test
+    public void nextAndPreviousPage_respectPageResultBoundaries() {
+        when(getReceiptsPagedUseCase.execute(1, 15))
+                .thenReturn(receiptPage("receipt-1", 1, 16));
+        when(getReceiptsPagedUseCase.execute(2, 15))
+                .thenReturn(receiptPage("receipt-2", 2, 16));
+
+        viewModel.loadData();
+        viewModel.nextPage();
+
+        assertEquals("receipt-2",
+                state().getReceipts().get(0).getId());
+        assertPaging(2, 15, 2, true, false);
+
+        viewModel.nextPage();
+        verify(getReceiptsPagedUseCase, times(1)).execute(2, 15);
+
+        viewModel.prevPage();
+        assertPaging(1, 15, 2, false, true);
+        verify(getReceiptsPagedUseCase, times(2)).execute(1, 15);
+    }
+
+    @Test
+    public void goToPage_loadsValidPageAndIgnoresInvalidPage() {
+        when(getReceiptsPagedUseCase.execute(1, 15))
+                .thenReturn(receiptPage("receipt-1", 1, 31));
+        when(getReceiptsPagedUseCase.execute(3, 15))
+                .thenReturn(receiptPage("receipt-31", 3, 31));
+
+        viewModel.loadData();
+        viewModel.goToPage(3);
+        viewModel.goToPage(4);
+
+        assertPaging(3, 15, 3, true, false);
+        verify(getReceiptsPagedUseCase).execute(3, 15);
+        verify(getReceiptsPagedUseCase, never()).execute(4, 15);
+    }
+
+    @Test
+    public void loadData_zeroRecordsUsesPageOneOfOne() {
+        when(getReceiptsPagedUseCase.execute(1, 15)).thenReturn(
+                new PageResult<>(Collections.emptyList(), 1, 15, 0));
+
+        viewModel.loadData();
+
+        assertEquals(Collections.emptyList(), state().getReceipts());
+        assertEquals(HistoryUiState.LoadState.EMPTY, state().getLoadState());
+        assertPaging(1, 15, 1, false, false);
+    }
+
+    @Test
+    public void loadInitialData_ignoresEquivalentRequestAndRetainedContent() {
+        ControlledExecutor executor = useControlledExecutor();
+        when(getReceiptsPagedUseCase.execute(1, 15))
+                .thenReturn(receiptPage("receipt-1", 1, 1));
+
+        viewModel.loadInitialData();
+        viewModel.loadInitialData();
+
+        assertEquals(1, executor.size());
+        assertEquals(HistoryUiState.LoadState.INITIAL_LOADING,
+                state().getLoadState());
+
+        executor.runNext();
+        viewModel.loadInitialData();
+
+        assertEquals(0, executor.size());
+        verify(getReceiptsPagedUseCase).execute(1, 15);
+    }
+
+    @Test
+    public void initialFailure_retryRepeatsExactRequestAndShowsContent() {
+        ControlledExecutor executor = useControlledExecutor();
+        when(getReceiptsPagedUseCase.execute(1, 15))
+                .thenThrow(new IllegalStateException("Database unavailable"))
+                .thenReturn(receiptPage("receipt-1", 1, 1));
+
+        viewModel.loadInitialData();
+        executor.runNext();
+
+        assertEquals(HistoryUiState.LoadState.INITIAL_ERROR,
+                state().getLoadState());
+        assertEquals("Database unavailable", state().getErrorMessage());
+        assertFalse(state().hasActiveSuccessfulPage());
+        assertNull(viewModel.getEffect().getValue());
+
+        viewModel.retry();
+        assertEquals(HistoryUiState.LoadState.INITIAL_LOADING,
+                state().getLoadState());
+        executor.runNext();
+
+        assertEquals(HistoryUiState.LoadState.CONTENT,
+                state().getLoadState());
+        assertEquals("receipt-1", state().getReceipts().get(0).getId());
+        assertNull(state().getErrorMessage());
+        verify(getReceiptsPagedUseCase, times(2)).execute(1, 15);
+    }
+
+    @Test
+    public void failedRefresh_preservesLastSuccessfulPage() {
+        ControlledExecutor executor = useControlledExecutor();
+        when(getReceiptsPagedUseCase.execute(1, 15))
+                .thenReturn(receiptPage("receipt-1", 1, 16))
+                .thenThrow(new IllegalStateException("Refresh unavailable"));
+
+        viewModel.loadInitialData();
+        executor.runNext();
+        viewModel.refresh();
+
+        assertEquals(HistoryUiState.LoadState.REFRESHING,
+                state().getLoadState());
+        assertEquals("receipt-1", state().getReceipts().get(0).getId());
+        assertPaging(1, 15, 2, false, true);
+
+        executor.runNext();
+
+        assertEquals(HistoryUiState.LoadState.CONTENT,
+                state().getLoadState());
+        assertEquals("receipt-1", state().getReceipts().get(0).getId());
+        assertPaging(1, 15, 2, false, true);
+        assertNull(state().getErrorMessage());
+        assertEffectConsumedOnce(HistoryEffect.Type.REFRESH_FAILED);
+    }
+
+    @Test
+    public void failedPageChange_restoresSuccessfulPageAndControls() {
+        ControlledExecutor executor = useControlledExecutor();
+        when(getReceiptsPagedUseCase.execute(1, 15))
+                .thenReturn(receiptPage("receipt-1", 1, 16));
+        when(getReceiptsPagedUseCase.execute(2, 15))
+                .thenThrow(new IllegalStateException("Page unavailable"));
+
+        viewModel.loadInitialData();
+        executor.runNext();
+        viewModel.nextPage();
+
+        assertEquals(HistoryUiState.LoadState.PAGE_CHANGING,
+                state().getLoadState());
+        assertEquals("receipt-1", state().getReceipts().get(0).getId());
+        assertPaging(1, 15, 2, false, true);
+
+        executor.runNext();
+
+        assertEquals(HistoryUiState.LoadState.CONTENT,
+                state().getLoadState());
+        assertEquals("receipt-1", state().getReceipts().get(0).getId());
+        assertPaging(1, 15, 2, false, true);
+        assertEffectConsumedOnce(HistoryEffect.Type.PAGE_LOAD_FAILED);
+    }
+
+    @Test
+    public void staleResult_cannotReplaceNewerSelectedMode() {
+        ControlledExecutor executor = useControlledExecutor();
+        when(getReceiptsPagedUseCase.execute(1, 15))
+                .thenReturn(receiptPage("stale-receipt", 1, 1));
+        when(getAllItemsPagedUseCase.execute(1, 30)).thenReturn(
+                new PageResult<>(Collections.emptyList(), 1, 30, 0));
+
+        viewModel.loadInitialData();
+        viewModel.setViewMode(HistoryUiState.ViewMode.ALL_ITEMS);
+
+        assertEquals(2, executor.size());
+        executor.runAt(1);
+        assertEquals(HistoryUiState.ViewMode.ALL_ITEMS,
+                state().getViewMode());
+        assertEquals(HistoryUiState.LoadState.EMPTY,
+                state().getLoadState());
+
+        executor.runAt(0);
+
+        assertEquals(HistoryUiState.ViewMode.ALL_ITEMS,
+                state().getViewMode());
+        assertEquals(HistoryUiState.LoadState.EMPTY,
+                state().getLoadState());
+        assertTrue(state().getReceipts().isEmpty());
+    }
+
+    @Test
+    public void modes_retainIndependentPageAndDefaultPageSize() {
+        when(getReceiptsPagedUseCase.execute(1, 15))
+                .thenReturn(receiptPage("receipt-1", 1, 16));
+        when(getReceiptsPagedUseCase.execute(2, 15))
+                .thenReturn(receiptPage("receipt-2", 2, 16));
+        when(getAllItemsPagedUseCase.execute(1, 30)).thenReturn(
+                new PageResult<>(Collections.emptyList(), 1, 30, 31));
+
+        viewModel.loadData();
+        viewModel.nextPage();
+        viewModel.setViewMode(HistoryUiState.ViewMode.ALL_ITEMS);
+
+        assertPaging(1, 30, 2, false, true);
+        verify(getAllItemsPagedUseCase).execute(1, 30);
+
+        viewModel.setViewMode(HistoryUiState.ViewMode.RECEIPTS);
+
+        assertPaging(2, 15, 2, true, false);
+        verify(getReceiptsPagedUseCase, times(2)).execute(2, 15);
+    }
+
+    @Test
+    public void setPageSize_resetsActiveModeToPageOne() {
+        when(getReceiptsPagedUseCase.execute(1, 15))
+                .thenReturn(receiptPage("receipt-1", 1, 31));
+        when(getReceiptsPagedUseCase.execute(3, 15))
+                .thenReturn(receiptPage("receipt-31", 3, 31));
+        when(getReceiptsPagedUseCase.execute(1, 30))
+                .thenReturn(new PageResult<>(
+                        Collections.singletonList(receipt("receipt-1")),
+                        1, 30, 31));
+
+        viewModel.loadData();
+        viewModel.goToPage(3);
+        viewModel.setPageSize(30);
+
+        assertPaging(1, 30, 2, false, true);
+        verify(getReceiptsPagedUseCase).execute(1, 30);
+    }
+
+    @Test
+    public void modes_retainIndependentSelectedPageSizes() {
+        when(getReceiptsPagedUseCase.execute(1, 30))
+                .thenReturn(new PageResult<>(Collections.emptyList(), 1, 30, 0));
+        when(getAllItemsPagedUseCase.execute(1, 30))
+                .thenReturn(new PageResult<>(Collections.emptyList(), 1, 30, 0));
+        when(getAllItemsPagedUseCase.execute(1, 50))
+                .thenReturn(new PageResult<>(Collections.emptyList(), 1, 50, 0));
+
+        viewModel.setPageSize(30);
+        viewModel.setViewMode(HistoryUiState.ViewMode.ALL_ITEMS);
+        viewModel.setPageSize(50);
+        viewModel.setViewMode(HistoryUiState.ViewMode.RECEIPTS);
+
+        assertEquals(30, state().getReceiptPaging().getPageSize());
+        assertEquals(50, state().getItemPaging().getPageSize());
+        assertEquals(HistoryUiState.ViewMode.RECEIPTS, state().getViewMode());
+        verify(getReceiptsPagedUseCase, times(2)).execute(1, 30);
+        verify(getAllItemsPagedUseCase).execute(1, 30);
+        verify(getAllItemsPagedUseCase).execute(1, 50);
+    }
+
+    @Test
+    public void setPageSize_ignoresUnsupportedAndCurrentValues() {
+        viewModel.setPageSize(10);
         viewModel.setPageSize(15);
 
-        assertEquals(Integer.valueOf(15), viewModel.getPageSize().getValue());
-        assertEquals(Integer.valueOf(0), viewModel.getCurrentPage().getValue());
-        verify(getReceiptsPagedUseCase).executeWithCount(0, 15);
+        verify(getReceiptsPagedUseCase, never()).execute(1, 10);
+        verify(getReceiptsPagedUseCase, never()).execute(1, 15);
+        assertEquals(15, state().getReceiptPaging().getPageSize());
     }
 
     @Test
-    public void nextPage_incrementsPageNumber() {
-        List<Receipt> page1Items = new ArrayList<>();
-        page1Items.add(new Receipt("id1", null, null, null, 0, false));
-        page1Items.add(new Receipt("id2", null, null, null, 0, false));
-
-        when(getReceiptsPagedUseCase.executeWithCount(0, 30)).thenReturn(new PageResult<>(page1Items, 100));
-        when(getReceiptsPagedUseCase.executeWithCount(1, 30)).thenReturn(new PageResult<>(page1Items, 100));
+    public void refresh_missingCurrentPageUsesRepositoryEffectivePage() {
+        when(getReceiptsPagedUseCase.execute(1, 15))
+                .thenReturn(receiptPage("receipt-1", 1, 31));
+        when(getReceiptsPagedUseCase.execute(3, 15))
+                .thenReturn(
+                        receiptPage("receipt-31", 3, 31),
+                        receiptPage("receipt-16", 2, 30));
 
         viewModel.loadData();
-        assertEquals(Integer.valueOf(0), viewModel.getCurrentPage().getValue());
+        viewModel.goToPage(3);
+        viewModel.loadData();
 
-        viewModel.nextPage();
-        assertEquals(Integer.valueOf(1), viewModel.getCurrentPage().getValue());
-        verify(getReceiptsPagedUseCase).executeWithCount(1, 30);
+        assertEquals("receipt-16",
+                state().getReceipts().get(0).getId());
+        assertPaging(2, 15, 2, true, false);
     }
 
     @Test
-    public void prevPage_decrementsPageNumber() {
-        List<Receipt> items = new ArrayList<>();
-        items.add(new Receipt("id", null, null, null, 0, false));
-
-        when(getReceiptsPagedUseCase.executeWithCount(0, 30)).thenReturn(new PageResult<>(items, 100));
-        when(getReceiptsPagedUseCase.executeWithCount(1, 30)).thenReturn(new PageResult<>(items, 100));
-
-        viewModel.loadData();
-        viewModel.nextPage();
-        assertEquals(Integer.valueOf(1), viewModel.getCurrentPage().getValue());
-
-        viewModel.prevPage();
-        assertEquals(Integer.valueOf(0), viewModel.getCurrentPage().getValue());
-    }
-
-    @Test
-    public void goToPage_navigatesToSpecificPage() {
-        List<Receipt> items = new ArrayList<>();
-        items.add(new Receipt("id", null, null, null, 0, false));
-
-        when(getReceiptsPagedUseCase.executeWithCount(0, 30)).thenReturn(new PageResult<>(items, 100));
-        when(getReceiptsPagedUseCase.executeWithCount(2, 30)).thenReturn(new PageResult<>(items, 100));
-
-        viewModel.loadData();
-        // Set initial state where there are enough pages
-        viewModel.goToPage(2);
-
-        assertEquals(Integer.valueOf(2), viewModel.getCurrentPage().getValue());
-        verify(getReceiptsPagedUseCase).executeWithCount(2, 30);
-    }
-
-    @Test
-    public void loadData_calculatesTotalPagesAsLastPageWhenFewerItemsReturned() {
-        List<Receipt> fewerItems = new ArrayList<>();
-        fewerItems.add(new Receipt("id1", null, null, null, 0, false));
-        when(getReceiptsPagedUseCase.executeWithCount(0, 30)).thenReturn(new PageResult<>(fewerItems, 1));
-
+    public void deleteReceipt_deletesThenReloadsRetainedPage() {
+        when(getReceiptsPagedUseCase.execute(1, 15))
+                .thenReturn(receiptPage("receipt-1", 1, 1));
         viewModel.loadData();
 
-        assertEquals(Integer.valueOf(1), viewModel.getTotalPages().getValue());
+        viewModel.deleteReceipt("receipt-1");
+
+        verify(deleteUseCase).execute("receipt-1");
+        verify(getReceiptsPagedUseCase, times(2)).execute(1, 15);
     }
 
-    @Test
-    public void deleteReceipt_deletesThenReloadsCurrentPage() {
-        List<Receipt> expected = Collections.singletonList(
-                new Receipt("id", null, null, null, 0, false)
-        );
-        when(getReceiptsPagedUseCase.executeWithCount(0, 30)).thenReturn(new PageResult<>(expected, 1));
-
-        viewModel.deleteReceipt("test-id");
-
-        verify(deleteUseCase).execute("test-id");
-        verify(getReceiptsPagedUseCase).executeWithCount(0, 30);
-    }
-    @Test
-    public void nextOnLastPage_doesNothing() {
-        when(getReceiptsPagedUseCase.executeWithCount(0, 30)).thenReturn(new PageResult<>(Collections.emptyList(), 10)); // 1 page
-
-        viewModel.loadData();
-        org.mockito.Mockito.reset(getReceiptsPagedUseCase);
-
-        // already last page
-        viewModel.nextPage();
-
-        // still page 0 and no additional loads
-        assertEquals(Integer.valueOf(0), viewModel.getCurrentPage().getValue());
-        org.mockito.Mockito.verifyNoMoreInteractions(getReceiptsPagedUseCase);
+    private void assertPaging(int currentPage,
+                              int pageSize,
+                              int totalPages,
+                              boolean hasPrevious,
+                              boolean hasNext) {
+        HistoryUiState.PagingState paging = state().getActivePaging();
+        assertEquals(currentPage, paging.getCurrentPage());
+        assertEquals(pageSize, paging.getPageSize());
+        assertEquals(totalPages, paging.getTotalPages());
+        assertEquals(hasPrevious, paging.hasPrevious());
+        assertEquals(hasNext, paging.hasNext());
     }
 
-    @Test
-    public void prevOnFirstPage_doesNothing() {
-        when(getReceiptsPagedUseCase.executeWithCount(0, 30)).thenReturn(new PageResult<>(Collections.emptyList(), 10));
-
-        viewModel.loadData();
-        org.mockito.Mockito.reset(getReceiptsPagedUseCase);
-
-        viewModel.prevPage();
-
-        assertEquals(Integer.valueOf(0), viewModel.getCurrentPage().getValue());
-        org.mockito.Mockito.verifyNoMoreInteractions(getReceiptsPagedUseCase);
+    private HistoryUiState state() {
+        return viewModel.getUiState().getValue();
     }
 
-    @Test
-    public void goToPage_invalidNegative_isRejected() {
-        when(getReceiptsPagedUseCase.executeWithCount(0, 30)).thenReturn(new PageResult<>(Collections.emptyList(), 100));
-
-        viewModel.loadData();
-        org.mockito.Mockito.reset(getReceiptsPagedUseCase);
-
-        viewModel.goToPage(-1);
-
-        // still page 0 and no additional loads
-        assertEquals(Integer.valueOf(0), viewModel.getCurrentPage().getValue());
-        org.mockito.Mockito.verifyNoMoreInteractions(getReceiptsPagedUseCase);
+    private void assertEffectConsumedOnce(HistoryEffect.Type expected) {
+        HistoryEffect effect = viewModel.getEffect().getValue();
+        assertEquals(expected, effect.consume());
+        assertNull(effect.consume());
     }
 
-    @Test
-    public void goToPage_invalidTooLarge_isRejected() {
-        when(getReceiptsPagedUseCase.executeWithCount(0, 30)).thenReturn(new PageResult<>(Collections.emptyList(), 30)); // 1 page
-
-        viewModel.loadData();
-        org.mockito.Mockito.reset(getReceiptsPagedUseCase);
-
-        viewModel.goToPage(1); // invalid since pages==1
-
-        assertEquals(Integer.valueOf(0), viewModel.getCurrentPage().getValue());
-        org.mockito.Mockito.verifyNoMoreInteractions(getReceiptsPagedUseCase);
+    private ControlledExecutor useControlledExecutor() {
+        ControlledExecutor executor = new ControlledExecutor();
+        viewModel = new HistoryViewModel(
+                getReceiptsPagedUseCase,
+                getAllItemsPagedUseCase,
+                deleteUseCase,
+                executor);
+        return executor;
     }
 
-    @Test
-    public void goToPage_selectCurrent_doesNotReload() {
-        when(getReceiptsPagedUseCase.executeWithCount(0, 30)).thenReturn(new PageResult<>(Collections.emptyList(), 100));
-
-        viewModel.loadData();
-
-        // reset interactions so we can observe subsequent calls
-        org.mockito.Mockito.reset(getReceiptsPagedUseCase);
-
-        viewModel.goToPage(0); // selecting current page
-
-        org.mockito.Mockito.verifyNoMoreInteractions(getReceiptsPagedUseCase);
+    private PageResult<Receipt> receiptPage(String id,
+                                            int currentPage,
+                                            int totalRecords) {
+        return new PageResult<>(
+                Collections.singletonList(receipt(id)),
+                currentPage,
+                15,
+                totalRecords);
     }
 
-    @Test
-    public void emptyResult_givesOneValidPage() {
-        when(getReceiptsPagedUseCase.executeWithCount(0, 30)).thenReturn(new PageResult<>(Collections.emptyList(), 0));
-
-        viewModel.loadData();
-
-        assertEquals(Integer.valueOf(1), viewModel.getTotalPages().getValue());
-        assertEquals(Integer.valueOf(0), viewModel.getCurrentPage().getValue());
+    private Receipt receipt(String id) {
+        return new Receipt(id, null, null, null, 0, false);
     }
 
-    @Test
-    public void exactTotalCalculation_boundary30And31() {
-        // 30 items => 1 page with pageSize 30
-        when(getReceiptsPagedUseCase.executeWithCount(0, 30)).thenReturn(new PageResult<>(Collections.nCopies(30, new Receipt("id", null, null, null, 0, false)), 30));
-        viewModel.loadData();
-        assertEquals(Integer.valueOf(1), viewModel.getTotalPages().getValue());
+    private static final class ControlledExecutor implements Executor {
+        private final List<Runnable> tasks = new ArrayList<>();
 
-        // 31 items => 2 pages
-        when(getReceiptsPagedUseCase.executeWithCount(0, 30)).thenReturn(new PageResult<>(Collections.nCopies(30, new Receipt("id", null, null, null, 0, false)), 31));
-        viewModel.loadData();
-        assertEquals(Integer.valueOf(2), viewModel.getTotalPages().getValue());
+        @Override
+        public void execute(Runnable command) {
+            tasks.add(command);
+        }
+
+        private int size() {
+            return tasks.size();
+        }
+
+        private void runNext() {
+            runAt(0);
+        }
+
+        private void runAt(int index) {
+            tasks.remove(index).run();
+        }
     }
-
-    @Test
-    public void invalidPageSize_isIgnored() {
-        when(getReceiptsPagedUseCase.executeWithCount(0, 30)).thenReturn(new PageResult<>(Collections.emptyList(), 0));
-        viewModel.loadData();
-        org.mockito.Mockito.reset(getReceiptsPagedUseCase);
-
-        // attempt invalid page size
-        viewModel.setPageSize(20);
-
-        // value stays default and nothing new loaded
-        assertEquals(Integer.valueOf(30), viewModel.getPageSize().getValue());
-        org.mockito.Mockito.verifyNoMoreInteractions(getReceiptsPagedUseCase);
-    }
-
 }

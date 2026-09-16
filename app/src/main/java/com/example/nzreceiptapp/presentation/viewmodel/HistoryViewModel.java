@@ -2,129 +2,262 @@ package com.example.nzreceiptapp.presentation.viewmodel;
 
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
+import androidx.lifecycle.ViewModel;
 
-import com.example.nzreceiptapp.domain.model.Receipt;
 import com.example.nzreceiptapp.domain.model.PageResult;
+import com.example.nzreceiptapp.domain.model.Receipt;
+import com.example.nzreceiptapp.domain.model.ReceiptItemSummary;
 import com.example.nzreceiptapp.domain.usecase.DeleteReceiptUseCase;
+import com.example.nzreceiptapp.domain.usecase.GetAllItemsPagedUseCase;
 import com.example.nzreceiptapp.domain.usecase.GetReceiptsPagedUseCase;
-import com.example.nzreceiptapp.presentation.base.BaseViewModel;
 
-import java.util.List;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * 處理收據歷史清單與管理邏輯的 ViewModel
+ * Handles receipt history content through one immutable UI state stream.
  */
-public class HistoryViewModel extends BaseViewModel {
+public class HistoryViewModel extends ViewModel {
 
-    private static final int DEFAULT_PAGE_SIZE = 30;
-    private static final int[] PAGE_SIZE_OPTIONS = {15, 30, 50};
+    private static final int DEFAULT_RECEIPT_PAGE_SIZE = 15;
+    private static final int DEFAULT_ITEM_PAGE_SIZE = 30;
+    private static final int[] SUPPORTED_PAGE_SIZES = {15, 30, 50};
 
     private final GetReceiptsPagedUseCase getReceiptsPagedUseCase;
+    private final GetAllItemsPagedUseCase getAllItemsPagedUseCase;
     private final DeleteReceiptUseCase deleteUseCase;
     private final Executor ioExecutor;
+    private final AtomicLong requestSequence = new AtomicLong();
 
-    private final MutableLiveData<List<Receipt>> receipts = new MutableLiveData<>();
-    private final MutableLiveData<Integer> currentPage = new MutableLiveData<>(0);
-    private final MutableLiveData<Integer> pageSize = new MutableLiveData<>(DEFAULT_PAGE_SIZE);
-    private final MutableLiveData<Integer> totalPages = new MutableLiveData<>(1);
+    private final MutableLiveData<HistoryUiState> uiState =
+            new MutableLiveData<>();
+    private final MutableLiveData<HistoryEffect> effect =
+            new MutableLiveData<>();
+    private volatile HistoryUiState currentState = HistoryUiState.initial(
+            DEFAULT_RECEIPT_PAGE_SIZE, DEFAULT_ITEM_PAGE_SIZE);
+    private volatile PageRequest activeRequest;
+    private volatile PageRequest failedInitialRequest;
 
     public HistoryViewModel(GetReceiptsPagedUseCase getReceiptsPagedUseCase,
+                            GetAllItemsPagedUseCase getAllItemsPagedUseCase,
                             DeleteReceiptUseCase deleteUseCase,
                             Executor ioExecutor) {
         this.getReceiptsPagedUseCase = getReceiptsPagedUseCase;
+        this.getAllItemsPagedUseCase = getAllItemsPagedUseCase;
         this.deleteUseCase = deleteUseCase;
         this.ioExecutor = ioExecutor;
+        uiState.setValue(currentState);
     }
 
-    public LiveData<List<Receipt>> getReceipts() { return receipts; }
-    public LiveData<Integer> getCurrentPage() { return currentPage; }
-    public LiveData<Integer> getPageSize() { return pageSize; }
-    public LiveData<Integer> getTotalPages() { return totalPages; }
-
-    public void setPageSize(int newPageSize) {
-        // Accept only allowed sizes and avoid redundant reloads
-        if (newPageSize != PAGE_SIZE_OPTIONS[0] && newPageSize != PAGE_SIZE_OPTIONS[1] && newPageSize != PAGE_SIZE_OPTIONS[2]) {
-            return; // ignore invalid sizes
-        }
-        Integer current = pageSize.getValue();
-        if (current != null && current == newPageSize) return; // no-op when unchanged
-
-        pageSize.setValue(newPageSize);
-        currentPage.setValue(0);
-        loadData();
+    public LiveData<HistoryUiState> getUiState() {
+        return uiState;
     }
 
-    public void goToPage(int page) {
-        Integer pages = totalPages.getValue();
-        Integer cur = currentPage.getValue();
-        if (page < 0 || pages == null || page >= pages) {
-            return; // invalid page
-        }
-        if (cur != null && cur == page) return; // no-op when selecting current page
+    public LiveData<HistoryEffect> getEffect() {
+        return effect;
+    }
 
-        currentPage.setValue(page);
-        loadData();
+    public void setViewMode(HistoryUiState.ViewMode mode) {
+        if (mode == null || mode == currentState.getViewMode()) {
+            return;
+        }
+        publish(currentState.selectMode(mode));
+        HistoryUiState.PagingState paging = currentState.getActivePaging();
+        loadPage(mode, paging.getCurrentPage(), paging.getPageSize());
     }
 
     public void nextPage() {
-        int page = currentPage.getValue() != null ? currentPage.getValue() : 0;
-        Integer pages = totalPages.getValue();
-        if (pages == null) return;
-        if (page + 1 >= pages) return; // already last page
-
-        currentPage.setValue(page + 1);
-        loadData();
+        HistoryUiState.PagingState paging = currentState.getActivePaging();
+        if (paging.hasNext()) {
+            loadPage(currentState.getViewMode(),
+                    paging.getCurrentPage() + 1,
+                    paging.getPageSize());
+        }
     }
 
     public void prevPage() {
-        int page = currentPage.getValue() != null ? currentPage.getValue() : 0;
-        if (page <= 0) return; // already first page
+        HistoryUiState.PagingState paging = currentState.getActivePaging();
+        if (paging.hasPrevious()) {
+            loadPage(currentState.getViewMode(),
+                    paging.getCurrentPage() - 1,
+                    paging.getPageSize());
+        }
+    }
 
-        currentPage.setValue(page - 1);
+    public void goToPage(int page) {
+        HistoryUiState.PagingState paging = currentState.getActivePaging();
+        if (page < 1
+                || page > paging.getTotalPages()
+                || page == paging.getCurrentPage()) {
+            return;
+        }
+        loadPage(currentState.getViewMode(), page, paging.getPageSize());
+    }
+
+    public void setPageSize(int pageSize) {
+        HistoryUiState.PagingState paging = currentState.getActivePaging();
+        if (!isSupportedPageSize(pageSize) || pageSize == paging.getPageSize()) {
+            return;
+        }
+        loadPage(currentState.getViewMode(), 1, pageSize);
+    }
+
+    /** Reloads the active mode's last successful page. */
+    public void loadData() {
+        HistoryUiState.PagingState paging = currentState.getActivePaging();
+        loadPage(currentState.getViewMode(),
+                paging.getCurrentPage(), paging.getPageSize());
+    }
+
+    /** Loads History once for a newly created screen, without reloading retained state. */
+    public void loadInitialData() {
+        if (currentState.hasActiveSuccessfulPage()
+                || currentState.getLoadState()
+                == HistoryUiState.LoadState.INITIAL_ERROR) {
+            return;
+        }
+        HistoryUiState.PagingState paging = currentState.getActivePaging();
+        loadPage(currentState.getViewMode(),
+                paging.getCurrentPage(), paging.getPageSize());
+    }
+
+    public void refresh() {
         loadData();
     }
 
-    public void loadData() {
-        isLoading.setValue(true);
-        int page = currentPage.getValue() != null ? currentPage.getValue() : 0;
-        int size = pageSize.getValue() != null ? pageSize.getValue() : DEFAULT_PAGE_SIZE;
+    public void retry() {
+        PageRequest request = failedInitialRequest;
+        if (request == null
+                || currentState.getLoadState()
+                != HistoryUiState.LoadState.INITIAL_ERROR
+                || request.mode != currentState.getViewMode()) {
+            return;
+        }
+        loadPage(request.mode, request.page, request.pageSize);
+    }
+
+    private void loadPage(HistoryUiState.ViewMode mode, int page, int pageSize) {
+        PageRequest existing = activeRequest;
+        if (existing != null && existing.matches(mode, page, pageSize)) {
+            return;
+        }
+
+        long requestId = requestSequence.incrementAndGet();
+        PageRequest request = new PageRequest(requestId, mode, page, pageSize);
+        HistoryUiState stateBeforeRequest = currentState;
+        HistoryUiState.PagingState successfulPaging =
+                stateBeforeRequest.getPaging(mode);
+        HistoryUiState.LoadState loadingState;
+        if (!successfulPaging.hasLoaded()) {
+            loadingState = HistoryUiState.LoadState.INITIAL_LOADING;
+        } else if (page == successfulPaging.getCurrentPage()
+                && pageSize == successfulPaging.getPageSize()) {
+            loadingState = HistoryUiState.LoadState.REFRESHING;
+        } else {
+            loadingState = HistoryUiState.LoadState.PAGE_CHANGING;
+        }
+        activeRequest = request;
+        failedInitialRequest = null;
+        publish(stateBeforeRequest.startLoading(loadingState));
 
         ioExecutor.execute(() -> {
             try {
-                PageResult<Receipt> result = getReceiptsPagedUseCase.executeWithCount(page, size);
-                List<Receipt> list = result.items;
-                int totalCount = result.totalCount;
-
-                receipts.postValue(list);
-
-                int pages = Math.max(1, (int) Math.ceil((double) totalCount / size));
-                totalPages.postValue(pages);
-
-                // Ensure current page is in range (could happen after page size change)
-                int cur = currentPage.getValue() != null ? currentPage.getValue() : 0;
-                if (cur >= pages) {
-                    currentPage.postValue(pages - 1);
+                if (mode == HistoryUiState.ViewMode.RECEIPTS) {
+                    PageResult<Receipt> result =
+                            getReceiptsPagedUseCase.execute(page, pageSize);
+                    if (!isCurrent(request)) return;
+                    activeRequest = null;
+                    publish(currentState.withReceiptPage(result));
+                } else {
+                    PageResult<ReceiptItemSummary> result =
+                            getAllItemsPagedUseCase.execute(page, pageSize);
+                    if (!isCurrent(request)) return;
+                    activeRequest = null;
+                    publish(currentState.withItemPage(result));
                 }
-            } catch (Exception e) {
-                errorMessages.postValue("Failed to load history: " + e.getMessage());
-            } finally {
-                isLoading.postValue(false);
+            } catch (Exception exception) {
+                if (isCurrent(request)) {
+                    activeRequest = null;
+                    if (successfulPaging.hasLoaded()) {
+                        publish(stateBeforeRequest.settle());
+                        publishEffect(loadingState
+                                == HistoryUiState.LoadState.REFRESHING
+                                ? HistoryEffect.refreshFailed()
+                                : HistoryEffect.pageLoadFailed());
+                    } else {
+                        failedInitialRequest = request;
+                        publish(currentState.withInitialError(
+                                safeMessage(exception)));
+                    }
+                }
             }
         });
     }
 
-    /**
-     * 刪除指定收據
-     */
+    /** Deletes the exact receipt and reloads the retained Receipt page. */
     public void deleteReceipt(String receiptId) {
         ioExecutor.execute(() -> {
             try {
                 deleteUseCase.execute(receiptId);
                 loadData();
-            } catch (Exception e) {
-                errorMessages.postValue("Delete failed: " + e.getMessage());
+            } catch (Exception exception) {
+                if (!currentState.hasActiveSuccessfulPage()) {
+                    publish(currentState.withInitialError(
+                            safeMessage(exception)));
+                }
             }
         });
+    }
+
+    private boolean isCurrent(PageRequest request) {
+        return request.id == requestSequence.get()
+                && activeRequest == request;
+    }
+
+    private void publish(HistoryUiState state) {
+        currentState = state;
+        uiState.postValue(state);
+    }
+
+    private void publishEffect(HistoryEffect historyEffect) {
+        effect.postValue(historyEffect);
+    }
+
+    private String safeMessage(Exception exception) {
+        return exception.getMessage() == null
+                ? exception.getClass().getSimpleName()
+                : exception.getMessage();
+    }
+
+    private boolean isSupportedPageSize(int pageSize) {
+        for (int supported : SUPPORTED_PAGE_SIZES) {
+            if (pageSize == supported) return true;
+        }
+        return false;
+    }
+
+    private static final class PageRequest {
+        private final long id;
+        private final HistoryUiState.ViewMode mode;
+        private final int page;
+        private final int pageSize;
+
+        private PageRequest(long id,
+                            HistoryUiState.ViewMode mode,
+                            int page,
+                            int pageSize) {
+            this.id = id;
+            this.mode = mode;
+            this.page = page;
+            this.pageSize = pageSize;
+        }
+
+        private boolean matches(HistoryUiState.ViewMode otherMode,
+                                int otherPage,
+                                int otherPageSize) {
+            return mode == otherMode
+                    && page == otherPage
+                    && pageSize == otherPageSize;
+        }
     }
 }

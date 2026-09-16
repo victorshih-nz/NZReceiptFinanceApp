@@ -20,9 +20,9 @@ import org.mockito.MockitoAnnotations;
 import java.time.LocalDateTime;
 import java.util.Collections;
 
-public class SaveReceiptUseCaseTest {
+public class UpdateReceiptUseCaseTest {
 
-    private SaveReceiptUseCase useCase;
+    private UpdateReceiptUseCase useCase;
 
     @Mock
     private IReceiptRepository repository;
@@ -30,55 +30,44 @@ public class SaveReceiptUseCaseTest {
     @Before
     public void setUp() {
         MockitoAnnotations.openMocks(this);
-        useCase = new SaveReceiptUseCase(repository);
+        useCase = new UpdateReceiptUseCase(repository);
     }
 
     @Test
-    public void execute_withReceipt_savesReceipt() {
-        Receipt receipt = validReceipt("Woolworths", "Greenlane");
+    public void execute_withValidReceipt_updatesSameReceipt() {
+        Receipt receipt = validReceipt("receipt-123", "Woolworths", "Albany");
 
         useCase.execute(receipt);
 
-        verify(repository).saveReceipt(receipt);
+        verify(repository).updateReceipt(receipt);
+        assertEquals("receipt-123", receipt.getId());
     }
 
     @Test
-    public void execute_withBlankBranch_savesReceipt() {
-        Receipt receipt = validReceipt("Woolworths", "   ");
+    public void execute_withBlankBranch_updatesReceipt() {
+        Receipt receipt = validReceipt("receipt-123", "Woolworths", "   ");
 
         useCase.execute(receipt);
 
-        verify(repository).saveReceipt(receipt);
+        verify(repository).updateReceipt(receipt);
     }
 
     @Test
-    public void execute_withNull_throwsValidationErrorAndDoesNotSave() {
-        assertValidationError(null, ReceiptValidator.ErrorCode.RECEIPT_REQUIRED);
+    public void execute_withInvalidReceipt_doesNotUpdate() {
+        Receipt receipt = validReceipt("receipt-123", " !!! ", null);
 
-        verify(repository, never()).saveReceipt(any());
-    }
-
-    @Test
-    public void execute_withNormalizedEmptyChain_throwsValidationErrorAndDoesNotSave() {
-        Receipt receipt = validReceipt(" !!! ", null);
-
-        assertValidationError(receipt, ReceiptValidator.ErrorCode.CHAIN_REQUIRED);
-
-        verify(repository, never()).saveReceipt(any());
-    }
-
-    private void assertValidationError(Receipt receipt,
-                                       ReceiptValidator.ErrorCode expectedCode) {
         try {
             useCase.execute(receipt);
             fail("Expected ReceiptValidationException");
-        } catch (SaveReceiptUseCase.ReceiptValidationException exception) {
-            assertEquals(expectedCode,
+        } catch (UpdateReceiptUseCase.ReceiptValidationException exception) {
+            assertEquals(ReceiptValidator.ErrorCode.CHAIN_REQUIRED,
                     exception.getValidationResult().getErrorCode());
         }
+
+        verify(repository, never()).updateReceipt(any());
     }
 
-    private Receipt validReceipt(String chain, String branch) {
+    private Receipt validReceipt(String id, String chain, String branch) {
         ReceiptItem item = new ReceiptItem(
                 "item-id",
                 "Apple",
@@ -91,7 +80,7 @@ public class SaveReceiptUseCaseTest {
                 false
         );
         return new Receipt(
-                "receipt-id",
+                id,
                 new Store("store-id", chain, branch),
                 Collections.singletonList(item),
                 LocalDateTime.of(2026, 8, 17, 12, 0),

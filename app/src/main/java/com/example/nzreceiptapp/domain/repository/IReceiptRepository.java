@@ -2,6 +2,9 @@ package com.example.nzreceiptapp.domain.repository;
 
 import com.example.nzreceiptapp.domain.model.Receipt;
 import com.example.nzreceiptapp.domain.model.ReceiptItemSummary;
+import com.example.nzreceiptapp.domain.model.PageResult;
+
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -14,6 +17,11 @@ public interface IReceiptRepository {
     void saveReceipt(Receipt receipt);
 
     /**
+     * Updates an existing Receipt and its owned Item/Discount graph atomically.
+     */
+    void updateReceipt(Receipt receipt);
+
+    /**
      * 獲取所有已儲存的發票清單
      */
     List<Receipt> getAllReceipts();
@@ -24,21 +32,22 @@ public interface IReceiptRepository {
     Receipt getReceiptById(String id);
 
     /**
-     * 分頁獲取發票清單
-     * @param limit 每頁數量
-     * @param offset 偏移量 (page * limit)
+     * 取得包含總筆數與有效頁碼的完整發票分頁結果。
      */
-    List<Receipt> getReceiptsPaged(int limit, int offset);
+    PageResult<Receipt> getReceiptsPage(int pageNumber, int pageSize);
 
     /**
-     * Get exact total count of persisted receipts
+     * 取得包含總筆數與有效頁碼的完整品項分頁結果。
      */
-    int getReceiptsCount();
+    PageResult<ReceiptItemSummary> getAllItemsPage(int pageNumber, int pageSize);
 
     /**
-     * 分頁獲取扁平化的所有品項清單
+     * Returns receipts in the requested purchase hour whose normalized Chain
+     * matches the supplied comparison key. The end timestamp is exclusive.
      */
-    List<ReceiptItemSummary> getAllItemsPaged(int limit, int offset);
+    List<Receipt> findDuplicateCandidates(String normalizedChain,
+                                          LocalDateTime hourStart,
+                                          LocalDateTime hourEnd);
 
     /**
      * 根據 ID 刪除發票
