@@ -243,7 +243,6 @@ public class HistoryFragment extends Fragment {
                                    boolean controlsEnabled) {
         binding.txtPage.setText(getString(
                 R.string.page_indicator,
-                state.getCurrentPage(),
                 state.getTotalPages()));
         binding.btnPrev.setEnabled(state.hasPrevious() && controlsEnabled);
         binding.btnNext.setEnabled(state.hasNext() && controlsEnabled);

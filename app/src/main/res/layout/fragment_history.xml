@@ -102,74 +102,75 @@
 
     </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
-    <LinearLayout
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/pagination_container"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:gravity="center_horizontal"
-        android:padding="8dp"
+        android:layout_height="64dp"
+        android:background="#FAFAFA"
+        android:elevation="4dp"
+        android:paddingHorizontal="8dp"
         app:layout_constraintBottom_toBottomOf="parent">
 
         <LinearLayout
+            android:id="@+id/page_controls"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/history_page_size_label"
-                android:textColor="#333333" />
-
-            <Spinner
-                android:id="@+id/spinnerPageSize"
-                android:layout_width="72dp"
-                android:layout_height="48dp"
-                android:layout_marginStart="8dp"
-                android:contentDescription="@string/history_page_size_description" />
-
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@id/spinnerPageSize"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
 
             <Button
                 android:id="@+id/btnPrev"
                 style="@style/Widget.MaterialComponents.Button.TextButton"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Prev" />
+                android:layout_height="48dp"
+                android:minWidth="0dp"
+                android:paddingHorizontal="8dp"
+                android:text="@string/action_previous"
+                android:textSize="12sp" />
+
+            <Spinner
+                android:id="@+id/spinnerPage"
+                android:layout_width="48dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="4dp"
+                android:background="@drawable/bg_history_page_selector"
+                android:contentDescription="@string/page_selector_description" />
 
             <TextView
                 android:id="@+id/txtPage"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
+                android:layout_marginStart="6dp"
                 android:text="@string/page_indicator_initial"
                 android:textColor="#333333" />
-
-            <Spinner
-                android:id="@+id/spinnerPage"
-                android:layout_width="72dp"
-                android:layout_height="48dp"
-                android:layout_marginStart="8dp"
-                android:contentDescription="@string/page_selector_description" />
 
             <Button
                 android:id="@+id/btnNext"
                 style="@style/Widget.MaterialComponents.Button.TextButton"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:layout_height="48dp"
                 android:layout_marginStart="4dp"
-                android:text="Next" />
+                android:minWidth="0dp"
+                android:paddingHorizontal="8dp"
+                android:text="@string/action_next"
+                android:textSize="12sp" />
 
         </LinearLayout>
 
-    </LinearLayout>
+        <Spinner
+            android:id="@+id/spinnerPageSize"
+            android:layout_width="64dp"
+            android:layout_height="48dp"
+            android:backgroundTint="?attr/colorPrimary"
+            android:contentDescription="@string/history_page_size_description"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
