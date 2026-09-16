@@ -22,16 +22,17 @@
             <EditText
                 android:id="@+id/edit_item_name"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="48dp"
                 android:layout_weight="1"
                 android:hint="Item name"
                 android:inputType="textCapWords"
-                android:maxLines="2" />
+                android:maxLines="2"
+                android:textSize="16sp" />
 
             <ImageButton
                 android:id="@+id/btn_remove_item"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Remove item"
                 android:src="@android:drawable/ic_menu_delete" />
@@ -39,21 +40,22 @@
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="55dp"
             android:orientation="horizontal">
 
             <EditText
                 android:id="@+id/edit_quantity"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="55dp"
                 android:layout_weight="1"
                 android:hint="Quantity"
-                android:inputType="numberDecimal" />
+                android:inputType="numberDecimal"
+                android:textSize="16sp" />
 
             <EditText
                 android:id="@+id/edit_unit"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="55dp"
                 android:layout_weight="1"
                 android:hint="Unit"
                 android:inputType="text" />
@@ -61,7 +63,7 @@
             <EditText
                 android:id="@+id/edit_unit_price"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="55dp"
                 android:layout_weight="1"
                 android:hint="Unit price"
                 android:inputType="numberDecimal" />

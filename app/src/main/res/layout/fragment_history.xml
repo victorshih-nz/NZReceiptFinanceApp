@@ -135,7 +135,7 @@
             <Spinner
                 android:id="@+id/spinnerPage"
                 android:layout_width="48dp"
-                android:layout_height="40dp"
+                android:layout_height="48dp"
                 android:layout_marginStart="4dp"
                 android:background="@drawable/bg_history_page_selector"
                 android:contentDescription="@string/page_selector_description" />
