@@ -45,6 +45,7 @@ jobs:
           --tests "com.example.nzreceiptapp.presentation.viewmodel.HistoryUiStateTest"
           --tests "com.example.nzreceiptapp.presentation.viewmodel.HistoryEffectTest"
           --tests "com.example.nzreceiptapp.presentation.viewmodel.HistoryViewModelTest"
+          --tests "com.example.nzreceiptapp.presentation.viewmodel.ReceiptDetailViewModelTest"
           --stacktrace
 
       - name: Run debug unit tests
