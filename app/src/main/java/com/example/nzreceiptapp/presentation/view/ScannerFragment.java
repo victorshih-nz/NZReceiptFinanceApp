@@ -48,6 +48,7 @@ public class ScannerFragment extends Fragment {
     private ScannerViewModel viewModel;
     private ImageCapture imageCapture;
     private String lastShownError;
+    private boolean reviewOpened;
 
     private final ActivityResultLauncher<String> requestPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), isGranted -> {
@@ -94,8 +95,8 @@ public class ScannerFragment extends Fragment {
         binding.btnCapture.setOnClickListener(v -> takePhoto());
         binding.btnGallery.setOnClickListener(v -> galleryLauncher.launch("image/*"));
         binding.btnTestSample.setOnClickListener(v -> loadSampleFromAssets());
-        binding.btnReview.setOnClickListener(v -> Navigation.findNavController(v)
-                .navigate(R.id.action_scanner_to_receiptReview));
+//        binding.btnReview.setOnClickListener(v -> Navigation.findNavController(v)
+//                .navigate(R.id.action_scanner_to_receiptReview));
 
         observeViewModel();
     }
@@ -106,7 +107,16 @@ public class ScannerFragment extends Fragment {
             binding.txtStatus.setText("Status: " + state.getPhase().name());
             boolean loading = state.isLoading();
             boolean awaitingReview = state.canReview();
-            binding.progressBar.setVisibility(loading ? View.VISIBLE : View.GONE);
+            //binding.progressBar.setVisibility(loading ? View.VISIBLE : View.GONE);
+            binding.btnReview.setVisibility(View.GONE);
+            if (awaitingReview && !reviewOpened){
+                reviewOpened = true;
+                Navigation.findNavController(requireView())
+                        .navigate(R.id.action_scanner_to_receiptReview);
+            }else if(!awaitingReview){
+                reviewOpened = false;
+            }
+
             binding.btnCapture.setEnabled(!loading && !awaitingReview);
             binding.btnGallery.setEnabled(!loading && !awaitingReview);
             binding.btnTestSample.setEnabled(!loading && !awaitingReview);
