@@ -209,13 +209,13 @@ public class HistoryViewModel extends ViewModel {
                 || currentState.isDeletingReceipt()) {
             return;
         }
-        publish(currentState.requestDelete(receiptId));
+        publishImmediately(currentState.requestDelete(receiptId));
     }
 
     public void cancelDelete() {
         if (currentState.getPendingDeleteReceiptId() != null
                 && !currentState.isDeletingReceipt()) {
-            publish(currentState.cancelDelete());
+            publishImmediately(currentState.cancelDelete());
         }
     }
 
@@ -227,7 +227,7 @@ public class HistoryViewModel extends ViewModel {
         }
         HistoryUiState.PagingState receiptPaging =
                 currentState.getReceiptPaging();
-        publish(currentState.startDeleting(receiptId));
+        publishImmediately(currentState.startDeleting(receiptId));
         ioExecutor.execute(() -> {
             try {
                 deleteUseCase.execute(receiptId);
@@ -259,6 +259,12 @@ public class HistoryViewModel extends ViewModel {
     private void publish(HistoryUiState state) {
         currentState = state;
         uiState.postValue(state);
+    }
+
+    /** Publishes state produced directly by a main-thread UI action. */
+    private void publishImmediately(HistoryUiState state) {
+        currentState = state;
+        uiState.setValue(state);
     }
 
     private void publishEffect(HistoryEffect historyEffect) {
