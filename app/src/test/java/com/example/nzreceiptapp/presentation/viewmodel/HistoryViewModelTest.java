@@ -4,6 +4,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -348,13 +349,85 @@ public class HistoryViewModelTest {
     @Test
     public void deleteReceipt_deletesThenReloadsRetainedPage() {
         when(getReceiptsPagedUseCase.execute(1, 15))
-                .thenReturn(receiptPage("receipt-1", 1, 1));
+                .thenReturn(
+                        receiptPage("receipt-1", 1, 1),
+                        new PageResult<>(Collections.emptyList(), 1, 15, 0));
         viewModel.loadData();
 
         viewModel.deleteReceipt("receipt-1");
 
         verify(deleteUseCase).execute("receipt-1");
         verify(getReceiptsPagedUseCase, times(2)).execute(1, 15);
+        assertEquals(HistoryUiState.LoadState.EMPTY, state().getLoadState());
+        assertPaging(1, 15, 1, false, false);
+        assertEffectConsumedOnce(HistoryEffect.Type.DELETE_SUCCEEDED);
+    }
+
+    @Test
+    public void deleteReceipt_ignoresRepeatedDeleteWhileFirstIsActive() {
+        ControlledExecutor executor = useControlledExecutor();
+        when(getReceiptsPagedUseCase.execute(1, 15))
+                .thenReturn(new PageResult<>(Collections.emptyList(), 1, 15, 0));
+
+        viewModel.deleteReceipt("receipt-1");
+        viewModel.deleteReceipt("receipt-1");
+
+        assertEquals("receipt-1", state().getDeletingReceiptId());
+        assertEquals(1, executor.size());
+        executor.runNext();
+        verify(deleteUseCase, times(1)).execute("receipt-1");
+        assertFalse(state().isDeletingReceipt());
+    }
+
+    @Test
+    public void deleteReceipt_databaseFailureRetainsContentAndEmitsFailure() {
+        when(getReceiptsPagedUseCase.execute(1, 15))
+                .thenReturn(receiptPage("receipt-1", 1, 1));
+        doThrow(new IllegalStateException("database failure"))
+                .when(deleteUseCase).execute("receipt-1");
+        viewModel.loadData();
+
+        viewModel.deleteReceipt("receipt-1");
+
+        assertEquals("receipt-1", state().getReceipts().get(0).getId());
+        assertEquals(HistoryUiState.LoadState.CONTENT, state().getLoadState());
+        assertFalse(state().isDeletingReceipt());
+        assertEffectConsumedOnce(HistoryEffect.Type.DELETE_FAILED);
+    }
+
+    @Test
+    public void deleteReceipt_onlyRowOnLaterPageFallsBackToPreviousPage() {
+        when(getReceiptsPagedUseCase.execute(1, 15))
+                .thenReturn(receiptPage("receipt-1", 1, 16));
+        when(getReceiptsPagedUseCase.execute(2, 15))
+                .thenReturn(
+                        receiptPage("receipt-16", 2, 16),
+                        receiptPage("receipt-1", 1, 15));
+        viewModel.loadData();
+        viewModel.goToPage(2);
+
+        viewModel.deleteReceipt("receipt-16");
+
+        verify(deleteUseCase).execute("receipt-16");
+        assertEquals("receipt-1", state().getReceipts().get(0).getId());
+        assertPaging(1, 15, 1, false, false);
+        assertEffectConsumedOnce(HistoryEffect.Type.DELETE_SUCCEEDED);
+    }
+
+    @Test
+    public void deleteReceipt_reloadFailureDoesNotMisreportCommittedDelete() {
+        when(getReceiptsPagedUseCase.execute(1, 15))
+                .thenReturn(receiptPage("receipt-1", 1, 1))
+                .thenThrow(new IllegalStateException("reload failure"));
+        viewModel.loadData();
+
+        viewModel.deleteReceipt("receipt-1");
+
+        verify(deleteUseCase).execute("receipt-1");
+        assertTrue(state().getReceipts().isEmpty());
+        assertEquals(HistoryUiState.LoadState.INITIAL_ERROR,
+                state().getLoadState());
+        assertEffectConsumedOnce(HistoryEffect.Type.DELETE_SUCCEEDED);
     }
 
     private void assertPaging(int currentPage,

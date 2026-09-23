@@ -128,6 +128,15 @@ public class HistoryViewModel extends ViewModel {
     public void retry() {
         PageRequest request = failedInitialRequest;
         if (request == null
+                && currentState.getLoadState()
+                == HistoryUiState.LoadState.INITIAL_ERROR
+                && !currentState.getReceiptPaging().hasLoaded()) {
+            HistoryUiState.PagingState paging = currentState.getReceiptPaging();
+            loadPage(HistoryUiState.ViewMode.RECEIPTS,
+                    1, paging.getPageSize());
+            return;
+        }
+        if (request == null
                 || currentState.getLoadState()
                 != HistoryUiState.LoadState.INITIAL_ERROR
                 || request.mode != currentState.getViewMode()) {
@@ -196,15 +205,33 @@ public class HistoryViewModel extends ViewModel {
 
     /** Deletes the exact receipt and reloads the retained Receipt page. */
     public void deleteReceipt(String receiptId) {
+        if (receiptId == null
+                || receiptId.trim().isEmpty()
+                || currentState.isDeletingReceipt()) {
+            return;
+        }
+        HistoryUiState.PagingState receiptPaging =
+                currentState.getReceiptPaging();
+        publish(currentState.startDeleting(receiptId));
         ioExecutor.execute(() -> {
             try {
                 deleteUseCase.execute(receiptId);
-                loadData();
             } catch (Exception exception) {
-                if (!currentState.hasActiveSuccessfulPage()) {
-                    publish(currentState.withInitialError(
-                            safeMessage(exception)));
-                }
+                publish(currentState.finishDeleting());
+                publishEffect(HistoryEffect.deleteFailed());
+                return;
+            }
+
+            try {
+                PageResult<Receipt> result = getReceiptsPagedUseCase.execute(
+                        receiptPaging.getCurrentPage(),
+                        receiptPaging.getPageSize());
+                publish(currentState.finishDeletingWithReceiptPage(result));
+                publishEffect(HistoryEffect.deleteSucceeded());
+            } catch (Exception exception) {
+                publish(currentState.finishDeletingWithReloadError(
+                        safeMessage(exception)));
+                publishEffect(HistoryEffect.deleteSucceeded());
             }
         });
     }

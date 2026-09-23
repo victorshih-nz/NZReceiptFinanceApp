@@ -21,6 +21,8 @@
     <string name="history_load_error_message">History data could not be loaded. Please try again.</string>
     <string name="history_refresh_failed">Unable to refresh history. Previous results are still shown.</string>
     <string name="history_page_load_failed">Unable to load that page. Previous results are still shown.</string>
+    <string name="history_delete_succeeded">Receipt deleted</string>
+    <string name="history_delete_failed">Unable to delete receipt. It is still available.</string>
     <string name="action_retry">Retry</string>
     <string name="receipt_detail_loading_description">Loading receipt details</string>
     <string name="receipt_detail_error_title">Unable to load receipt</string>

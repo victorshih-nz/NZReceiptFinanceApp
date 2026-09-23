@@ -14,4 +14,12 @@ public class HistoryEffectTest {
         assertEquals(HistoryEffect.Type.REFRESH_FAILED, effect.consume());
         assertNull(effect.consume());
     }
+
+    @Test
+    public void deletionFactories_exposeTruthfulResultTypes() {
+        assertEquals(HistoryEffect.Type.DELETE_SUCCEEDED,
+                HistoryEffect.deleteSucceeded().consume());
+        assertEquals(HistoryEffect.Type.DELETE_FAILED,
+                HistoryEffect.deleteFailed().consume());
+    }
 }

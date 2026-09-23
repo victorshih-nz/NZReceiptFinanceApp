@@ -10,7 +10,9 @@ public final class HistoryEffect {
 
     public enum Type {
         REFRESH_FAILED,
-        PAGE_LOAD_FAILED
+        PAGE_LOAD_FAILED,
+        DELETE_SUCCEEDED,
+        DELETE_FAILED
     }
 
     private final Type type;
@@ -26,6 +28,14 @@ public final class HistoryEffect {
 
     public static HistoryEffect pageLoadFailed() {
         return new HistoryEffect(Type.PAGE_LOAD_FAILED);
+    }
+
+    public static HistoryEffect deleteSucceeded() {
+        return new HistoryEffect(Type.DELETE_SUCCEEDED);
+    }
+
+    public static HistoryEffect deleteFailed() {
+        return new HistoryEffect(Type.DELETE_FAILED);
     }
 
     /** Returns the effect once, then returns {@code null} on every replay. */

@@ -32,6 +32,7 @@ public final class HistoryUiState {
     private final PagingState itemPaging;
     private final LoadState loadState;
     private final String errorMessage;
+    private final String deletingReceiptId;
 
     private HistoryUiState(ViewMode viewMode,
                            List<Receipt> receipts,
@@ -39,7 +40,8 @@ public final class HistoryUiState {
                            PagingState receiptPaging,
                            PagingState itemPaging,
                            LoadState loadState,
-                           String errorMessage) {
+                           String errorMessage,
+                           String deletingReceiptId) {
         this.viewMode = viewMode;
         this.receipts = immutableCopy(receipts);
         this.allItems = immutableCopy(allItems);
@@ -47,6 +49,7 @@ public final class HistoryUiState {
         this.itemPaging = itemPaging;
         this.loadState = loadState;
         this.errorMessage = errorMessage;
+        this.deletingReceiptId = deletingReceiptId;
     }
 
     public static HistoryUiState initial(int receiptPageSize, int itemPageSize) {
@@ -57,6 +60,7 @@ public final class HistoryUiState {
                 PagingState.initial(receiptPageSize),
                 PagingState.initial(itemPageSize),
                 LoadState.IDLE,
+                null,
                 null);
     }
 
@@ -69,7 +73,8 @@ public final class HistoryUiState {
                 receiptPaging,
                 itemPaging,
                 settledState(mode, selectedPaging),
-                null);
+                null,
+                deletingReceiptId);
     }
 
     public HistoryUiState startLoading(LoadState loadingState) {
@@ -85,7 +90,8 @@ public final class HistoryUiState {
                 receiptPaging,
                 itemPaging,
                 loadingState,
-                null);
+                null,
+                deletingReceiptId);
     }
 
     public HistoryUiState withReceiptPage(PageResult<Receipt> result) {
@@ -96,7 +102,8 @@ public final class HistoryUiState {
                 PagingState.from(result),
                 itemPaging,
                 result.getItems().isEmpty() ? LoadState.EMPTY : LoadState.CONTENT,
-                null);
+                null,
+                deletingReceiptId);
     }
 
     public HistoryUiState withItemPage(PageResult<ReceiptItemSummary> result) {
@@ -107,7 +114,8 @@ public final class HistoryUiState {
                 receiptPaging,
                 PagingState.from(result),
                 result.getItems().isEmpty() ? LoadState.EMPTY : LoadState.CONTENT,
-                null);
+                null,
+                deletingReceiptId);
     }
 
     public HistoryUiState withInitialError(String message) {
@@ -118,7 +126,8 @@ public final class HistoryUiState {
                 receiptPaging,
                 itemPaging,
                 LoadState.INITIAL_ERROR,
-                message);
+                message,
+                deletingReceiptId);
     }
 
     public HistoryUiState settle() {
@@ -129,6 +138,58 @@ public final class HistoryUiState {
                 receiptPaging,
                 itemPaging,
                 settledState(viewMode, getActivePaging()),
+                null,
+                deletingReceiptId);
+    }
+
+    public HistoryUiState startDeleting(String receiptId) {
+        if (receiptId == null || receiptId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Receipt ID is required");
+        }
+        return new HistoryUiState(
+                viewMode,
+                receipts,
+                allItems,
+                receiptPaging,
+                itemPaging,
+                loadState,
+                errorMessage,
+                receiptId);
+    }
+
+    public HistoryUiState finishDeletingWithReceiptPage(PageResult<Receipt> result) {
+        return new HistoryUiState(
+                viewMode,
+                result.getItems(),
+                allItems,
+                PagingState.from(result),
+                itemPaging,
+                result.getItems().isEmpty() ? LoadState.EMPTY : LoadState.CONTENT,
+                null,
+                null);
+    }
+
+    public HistoryUiState finishDeleting() {
+        return new HistoryUiState(
+                viewMode,
+                receipts,
+                allItems,
+                receiptPaging,
+                itemPaging,
+                settledState(viewMode, getActivePaging()),
+                null,
+                null);
+    }
+
+    public HistoryUiState finishDeletingWithReloadError(String message) {
+        return new HistoryUiState(
+                viewMode,
+                Collections.emptyList(),
+                allItems,
+                PagingState.initial(receiptPaging.getPageSize()),
+                itemPaging,
+                LoadState.INITIAL_ERROR,
+                message,
                 null);
     }
 
@@ -187,7 +248,7 @@ public final class HistoryUiState {
     }
 
     public boolean canUsePagingControls() {
-        return hasActiveSuccessfulPage() && !isLoading();
+        return hasActiveSuccessfulPage() && !isLoading() && !isDeletingReceipt();
     }
 
     public boolean isActiveContentEmpty() {
@@ -198,6 +259,14 @@ public final class HistoryUiState {
 
     public String getErrorMessage() {
         return errorMessage;
+    }
+
+    public boolean isDeletingReceipt() {
+        return deletingReceiptId != null;
+    }
+
+    public String getDeletingReceiptId() {
+        return deletingReceiptId;
     }
 
     private LoadState settledState(ViewMode mode, PagingState paging) {

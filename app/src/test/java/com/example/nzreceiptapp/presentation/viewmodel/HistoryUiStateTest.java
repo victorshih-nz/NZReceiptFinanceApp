@@ -130,6 +130,24 @@ public class HistoryUiStateTest {
         assertFalse(error.canUsePagingControls());
     }
 
+    @Test
+    public void deletionState_retainsContentAndDisablesRepeatedControls() {
+        HistoryUiState content = HistoryUiState.initial(15, 30)
+                .withReceiptPage(new PageResult<>(
+                        Collections.singletonList(receipt("receipt-1")),
+                        1, 15, 1));
+
+        HistoryUiState deleting = content.startDeleting("receipt-1");
+        HistoryUiState failed = deleting.finishDeleting();
+
+        assertTrue(deleting.isDeletingReceipt());
+        assertEquals("receipt-1", deleting.getDeletingReceiptId());
+        assertEquals("receipt-1", deleting.getReceipts().get(0).getId());
+        assertFalse(deleting.canUsePagingControls());
+        assertFalse(failed.isDeletingReceipt());
+        assertTrue(failed.canUsePagingControls());
+    }
+
     private Receipt receipt(String id) {
         return new Receipt(id, null, null, null, 0, false);
     }

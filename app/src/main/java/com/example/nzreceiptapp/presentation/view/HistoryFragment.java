@@ -169,9 +169,22 @@ public class HistoryFragment extends Fragment {
         if (type == null) {
             return;
         }
-        int message = type == HistoryEffect.Type.REFRESH_FAILED
-                ? R.string.history_refresh_failed
-                : R.string.history_page_load_failed;
+        int message;
+        switch (type) {
+            case REFRESH_FAILED:
+                message = R.string.history_refresh_failed;
+                break;
+            case DELETE_SUCCEEDED:
+                message = R.string.history_delete_succeeded;
+                break;
+            case DELETE_FAILED:
+                message = R.string.history_delete_failed;
+                break;
+            case PAGE_LOAD_FAILED:
+            default:
+                message = R.string.history_page_load_failed;
+                break;
+        }
         Snackbar.make(binding.getRoot(), message, Snackbar.LENGTH_LONG).show();
     }
 
