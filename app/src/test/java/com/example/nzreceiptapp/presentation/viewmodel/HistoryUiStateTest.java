@@ -148,6 +148,22 @@ public class HistoryUiStateTest {
         assertTrue(failed.canUsePagingControls());
     }
 
+    @Test
+    public void deleteConfirmation_keepsExactIdUntilCancelOrConfirm() {
+        HistoryUiState content = HistoryUiState.initial(15, 30)
+                .withReceiptPage(new PageResult<>(
+                        Collections.singletonList(receipt("receipt-1")),
+                        1, 15, 1));
+
+        HistoryUiState pending = content.requestDelete("receipt-1");
+        HistoryUiState cancelled = pending.cancelDelete();
+
+        assertEquals("receipt-1", pending.getPendingDeleteReceiptId());
+        assertFalse(pending.isDeletingReceipt());
+        assertEquals(null, cancelled.getPendingDeleteReceiptId());
+        assertEquals("receipt-1", cancelled.getReceipts().get(0).getId());
+    }
+
     private Receipt receipt(String id) {
         return new Receipt(id, null, null, null, 0, false);
     }

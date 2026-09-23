@@ -354,7 +354,8 @@ public class HistoryViewModelTest {
                         new PageResult<>(Collections.emptyList(), 1, 15, 0));
         viewModel.loadData();
 
-        viewModel.deleteReceipt("receipt-1");
+        viewModel.requestDelete("receipt-1");
+        viewModel.confirmDelete();
 
         verify(deleteUseCase).execute("receipt-1");
         verify(getReceiptsPagedUseCase, times(2)).execute(1, 15);
@@ -369,8 +370,10 @@ public class HistoryViewModelTest {
         when(getReceiptsPagedUseCase.execute(1, 15))
                 .thenReturn(new PageResult<>(Collections.emptyList(), 1, 15, 0));
 
-        viewModel.deleteReceipt("receipt-1");
-        viewModel.deleteReceipt("receipt-1");
+        viewModel.requestDelete("receipt-1");
+        viewModel.confirmDelete();
+        viewModel.requestDelete("receipt-1");
+        viewModel.confirmDelete();
 
         assertEquals("receipt-1", state().getDeletingReceiptId());
         assertEquals(1, executor.size());
@@ -387,7 +390,8 @@ public class HistoryViewModelTest {
                 .when(deleteUseCase).execute("receipt-1");
         viewModel.loadData();
 
-        viewModel.deleteReceipt("receipt-1");
+        viewModel.requestDelete("receipt-1");
+        viewModel.confirmDelete();
 
         assertEquals("receipt-1", state().getReceipts().get(0).getId());
         assertEquals(HistoryUiState.LoadState.CONTENT, state().getLoadState());
@@ -406,7 +410,8 @@ public class HistoryViewModelTest {
         viewModel.loadData();
         viewModel.goToPage(2);
 
-        viewModel.deleteReceipt("receipt-16");
+        viewModel.requestDelete("receipt-16");
+        viewModel.confirmDelete();
 
         verify(deleteUseCase).execute("receipt-16");
         assertEquals("receipt-1", state().getReceipts().get(0).getId());
@@ -421,13 +426,40 @@ public class HistoryViewModelTest {
                 .thenThrow(new IllegalStateException("reload failure"));
         viewModel.loadData();
 
-        viewModel.deleteReceipt("receipt-1");
+        viewModel.requestDelete("receipt-1");
+        viewModel.confirmDelete();
 
         verify(deleteUseCase).execute("receipt-1");
         assertTrue(state().getReceipts().isEmpty());
         assertEquals(HistoryUiState.LoadState.INITIAL_ERROR,
                 state().getLoadState());
         assertEffectConsumedOnce(HistoryEffect.Type.DELETE_SUCCEEDED);
+    }
+
+    @Test
+    public void cancelDelete_clearsConfirmationWithoutRepositoryCall() {
+        when(getReceiptsPagedUseCase.execute(1, 15))
+                .thenReturn(receiptPage("receipt-1", 1, 1));
+        viewModel.loadData();
+
+        viewModel.requestDelete("receipt-1");
+        assertEquals("receipt-1", state().getPendingDeleteReceiptId());
+        viewModel.cancelDelete();
+
+        assertNull(state().getPendingDeleteReceiptId());
+        assertEquals("receipt-1", state().getReceipts().get(0).getId());
+        verify(deleteUseCase, never()).execute("receipt-1");
+    }
+
+    @Test
+    public void confirmDelete_passesExactPendingReceiptId() {
+        when(getReceiptsPagedUseCase.execute(1, 15))
+                .thenReturn(new PageResult<>(Collections.emptyList(), 1, 15, 0));
+
+        viewModel.requestDelete("receipt-exact");
+        viewModel.confirmDelete();
+
+        verify(deleteUseCase).execute("receipt-exact");
     }
 
     private void assertPaging(int currentPage,

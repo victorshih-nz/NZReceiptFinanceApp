@@ -6,10 +6,10 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -23,6 +23,7 @@ import com.example.nzreceiptapp.presentation.viewmodel.HistoryEffect;
 import com.example.nzreceiptapp.presentation.viewmodel.HistoryUiState;
 import com.example.nzreceiptapp.presentation.viewmodel.HistoryViewModel;
 import com.google.android.material.snackbar.Snackbar;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.tabs.TabLayout;
 import com.example.nzreceiptapp.R;
 
@@ -39,6 +40,7 @@ public class HistoryFragment extends Fragment {
     private ReceiptItemSummaryAdapter itemsAdapter;
     private boolean updatingPageSpinner;
     private boolean updatingPageSizeSpinner;
+    private AlertDialog deleteDialog;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -90,10 +92,7 @@ public class HistoryFragment extends Fragment {
                 args.putString("receiptId", receipt.getId());
                 Navigation.findNavController(requireView()).navigate(R.id.receiptDetailFragment, args);
             },
-            receipt -> {
-                viewModel.deleteReceipt(receipt.getId());
-                Toast.makeText(getContext(), "Receipt deleted", Toast.LENGTH_SHORT).show();
-            }
+            receipt -> viewModel.requestDelete(receipt.getId())
         );
         itemsAdapter = new ReceiptItemSummaryAdapter();
 
@@ -193,7 +192,8 @@ public class HistoryFragment extends Fragment {
                 state.getViewMode() == HistoryUiState.ViewMode.RECEIPTS;
         if (receiptsMode) {
             binding.recyclerView.setAdapter(receiptAdapter);
-            receiptAdapter.submitList(state.getReceipts());
+            receiptAdapter.submitList(
+                    state.getReceipts(), state.getDeletingReceiptId());
         } else {
             binding.recyclerView.setAdapter(itemsAdapter);
             itemsAdapter.submitList(state.getAllItems());
@@ -223,6 +223,7 @@ public class HistoryFragment extends Fragment {
         renderPagingState(state.getActivePaging(), pagingControlsEnabled);
         renderPageSize(
                 state.getActivePaging().getPageSize(), pagingControlsEnabled);
+        renderDeleteConfirmation(state.getPendingDeleteReceiptId());
 
         int tabPosition = receiptsMode ? 0 : 1;
         TabLayout.Tab selectedTab = binding.tabLayout.getTabAt(tabPosition);
@@ -230,6 +231,30 @@ public class HistoryFragment extends Fragment {
             selectedTab.select();
         }
 
+    }
+
+    private void renderDeleteConfirmation(String receiptId) {
+        if (receiptId == null) {
+            if (deleteDialog != null) {
+                deleteDialog.dismiss();
+                deleteDialog = null;
+            }
+            return;
+        }
+        if (deleteDialog != null && deleteDialog.isShowing()) {
+            return;
+        }
+
+        deleteDialog = new MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.history_delete_confirmation_title)
+                .setMessage(R.string.history_delete_confirmation_message)
+                .setNegativeButton(R.string.action_cancel,
+                        (dialog, which) -> viewModel.cancelDelete())
+                .setPositiveButton(R.string.action_delete,
+                        (dialog, which) -> viewModel.confirmDelete())
+                .setOnCancelListener(dialog -> viewModel.cancelDelete())
+                .create();
+        deleteDialog.show();
     }
 
     private void renderPageSize(int pageSize, boolean controlsEnabled) {
@@ -279,6 +304,10 @@ public class HistoryFragment extends Fragment {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        if (deleteDialog != null) {
+            deleteDialog.dismiss();
+            deleteDialog = null;
+        }
         binding = null;
     }
 }

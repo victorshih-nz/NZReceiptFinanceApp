@@ -9,6 +9,7 @@
     <string name="msg_no_receipts">No receipts yet. Start scanning!</string>
     <string name="msg_no_items">No purchased items yet.</string>
     <string name="action_delete">Delete</string>
+    <string name="action_cancel">Cancel</string>
     <string name="action_review">Review receipt</string>
     <string name="page_indicator">of %1$d</string>
     <string name="page_indicator_initial">of 1</string>
@@ -23,6 +24,8 @@
     <string name="history_page_load_failed">Unable to load that page. Previous results are still shown.</string>
     <string name="history_delete_succeeded">Receipt deleted</string>
     <string name="history_delete_failed">Unable to delete receipt. It is still available.</string>
+    <string name="history_delete_confirmation_title">Delete receipt?</string>
+    <string name="history_delete_confirmation_message">This receipt will be permanently deleted.</string>
     <string name="action_retry">Retry</string>
     <string name="receipt_detail_loading_description">Loading receipt details</string>
     <string name="receipt_detail_error_title">Unable to load receipt</string>

@@ -32,6 +32,7 @@ public final class HistoryUiState {
     private final PagingState itemPaging;
     private final LoadState loadState;
     private final String errorMessage;
+    private final String pendingDeleteReceiptId;
     private final String deletingReceiptId;
 
     private HistoryUiState(ViewMode viewMode,
@@ -41,6 +42,7 @@ public final class HistoryUiState {
                            PagingState itemPaging,
                            LoadState loadState,
                            String errorMessage,
+                           String pendingDeleteReceiptId,
                            String deletingReceiptId) {
         this.viewMode = viewMode;
         this.receipts = immutableCopy(receipts);
@@ -49,6 +51,7 @@ public final class HistoryUiState {
         this.itemPaging = itemPaging;
         this.loadState = loadState;
         this.errorMessage = errorMessage;
+        this.pendingDeleteReceiptId = pendingDeleteReceiptId;
         this.deletingReceiptId = deletingReceiptId;
     }
 
@@ -60,6 +63,7 @@ public final class HistoryUiState {
                 PagingState.initial(receiptPageSize),
                 PagingState.initial(itemPageSize),
                 LoadState.IDLE,
+                null,
                 null,
                 null);
     }
@@ -74,6 +78,7 @@ public final class HistoryUiState {
                 itemPaging,
                 settledState(mode, selectedPaging),
                 null,
+                pendingDeleteReceiptId,
                 deletingReceiptId);
     }
 
@@ -91,6 +96,7 @@ public final class HistoryUiState {
                 itemPaging,
                 loadingState,
                 null,
+                pendingDeleteReceiptId,
                 deletingReceiptId);
     }
 
@@ -103,6 +109,7 @@ public final class HistoryUiState {
                 itemPaging,
                 result.getItems().isEmpty() ? LoadState.EMPTY : LoadState.CONTENT,
                 null,
+                pendingDeleteReceiptId,
                 deletingReceiptId);
     }
 
@@ -115,6 +122,7 @@ public final class HistoryUiState {
                 PagingState.from(result),
                 result.getItems().isEmpty() ? LoadState.EMPTY : LoadState.CONTENT,
                 null,
+                pendingDeleteReceiptId,
                 deletingReceiptId);
     }
 
@@ -127,6 +135,7 @@ public final class HistoryUiState {
                 itemPaging,
                 LoadState.INITIAL_ERROR,
                 message,
+                pendingDeleteReceiptId,
                 deletingReceiptId);
     }
 
@@ -139,7 +148,32 @@ public final class HistoryUiState {
                 itemPaging,
                 settledState(viewMode, getActivePaging()),
                 null,
+                pendingDeleteReceiptId,
                 deletingReceiptId);
+    }
+
+    public HistoryUiState requestDelete(String receiptId) {
+        if (receiptId == null || receiptId.trim().isEmpty()) {
+            throw new IllegalArgumentException("Receipt ID is required");
+        }
+        return copyDeleteState(receiptId, deletingReceiptId);
+    }
+
+    public HistoryUiState cancelDelete() {
+        return copyDeleteState(null, deletingReceiptId);
+    }
+
+    private HistoryUiState copyDeleteState(String pendingId, String deletingId) {
+        return new HistoryUiState(
+                viewMode,
+                receipts,
+                allItems,
+                receiptPaging,
+                itemPaging,
+                loadState,
+                errorMessage,
+                pendingId,
+                deletingId);
     }
 
     public HistoryUiState startDeleting(String receiptId) {
@@ -154,6 +188,7 @@ public final class HistoryUiState {
                 itemPaging,
                 loadState,
                 errorMessage,
+                null,
                 receiptId);
     }
 
@@ -165,6 +200,7 @@ public final class HistoryUiState {
                 PagingState.from(result),
                 itemPaging,
                 result.getItems().isEmpty() ? LoadState.EMPTY : LoadState.CONTENT,
+                null,
                 null,
                 null);
     }
@@ -178,6 +214,7 @@ public final class HistoryUiState {
                 itemPaging,
                 settledState(viewMode, getActivePaging()),
                 null,
+                null,
                 null);
     }
 
@@ -190,6 +227,7 @@ public final class HistoryUiState {
                 itemPaging,
                 LoadState.INITIAL_ERROR,
                 message,
+                null,
                 null);
     }
 
@@ -263,6 +301,10 @@ public final class HistoryUiState {
 
     public boolean isDeletingReceipt() {
         return deletingReceiptId != null;
+    }
+
+    public String getPendingDeleteReceiptId() {
+        return pendingDeleteReceiptId;
     }
 
     public String getDeletingReceiptId() {

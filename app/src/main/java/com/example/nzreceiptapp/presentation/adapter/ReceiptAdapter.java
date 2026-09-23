@@ -27,6 +27,7 @@ public class ReceiptAdapter extends RecyclerView.Adapter<ReceiptAdapter.ViewHold
     private final List<Receipt> receipts = new ArrayList<>();
     private final OnDeleteClickListener deleteListener;
     private final OnReceiptClickListener clickListener;
+    private String deletingReceiptId;
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.getDefault());
 
     public ReceiptAdapter(OnReceiptClickListener clickListener, OnDeleteClickListener deleteListener) {
@@ -34,11 +35,12 @@ public class ReceiptAdapter extends RecyclerView.Adapter<ReceiptAdapter.ViewHold
         this.deleteListener = deleteListener;
     }
 
-    public void submitList(List<Receipt> newList) {
+    public void submitList(List<Receipt> newList, String deletingReceiptId) {
         receipts.clear();
         if (newList != null) {
             receipts.addAll(newList);
         }
+        this.deletingReceiptId = deletingReceiptId;
         notifyDataSetChanged();
     }
 
@@ -84,6 +86,7 @@ public class ReceiptAdapter extends RecyclerView.Adapter<ReceiptAdapter.ViewHold
                     deleteListener.onDelete(receipt);
                 }
             });
+            binding.btnDelete.setEnabled(deletingReceiptId == null);
 
             itemView.setOnClickListener(v -> {
                 if (clickListener != null) {

@@ -203,11 +203,26 @@ public class HistoryViewModel extends ViewModel {
         });
     }
 
-    /** Deletes the exact receipt and reloads the retained Receipt page. */
-    public void deleteReceipt(String receiptId) {
+    public void requestDelete(String receiptId) {
         if (receiptId == null
                 || receiptId.trim().isEmpty()
                 || currentState.isDeletingReceipt()) {
+            return;
+        }
+        publish(currentState.requestDelete(receiptId));
+    }
+
+    public void cancelDelete() {
+        if (currentState.getPendingDeleteReceiptId() != null
+                && !currentState.isDeletingReceipt()) {
+            publish(currentState.cancelDelete());
+        }
+    }
+
+    /** Deletes the confirmed receipt and reloads the retained Receipt page. */
+    public void confirmDelete() {
+        String receiptId = currentState.getPendingDeleteReceiptId();
+        if (receiptId == null || currentState.isDeletingReceipt()) {
             return;
         }
         HistoryUiState.PagingState receiptPaging =
