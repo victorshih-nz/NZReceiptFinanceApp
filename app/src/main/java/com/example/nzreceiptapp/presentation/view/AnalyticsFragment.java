@@ -117,31 +117,41 @@ public final class AnalyticsFragment extends Fragment {
 
         Integer selected = yearMode ? state.getSelectedYear()
                 : monthMode ? state.getSelectedMonth() : state.getSelectedDay();
-        binding.chart.setData(state.getBars(), state.getLevel(), selected);
-        // Reposition only when the chart period changes or the selected bar changes.
-        // Do not jump back while the user is manually scrolling or refreshing.
+        // Wait for the actual horizontal viewport width; display metrics include system insets.
         String chartPeriod = state.getLevel() + ":" + state.getYear() + ":"
                 + state.getSelectedMonth() + ":" + selected;
-        if (!chartPeriod.equals(lastChartPeriod)) {
-            lastChartPeriod = chartPeriod;
+        // A refresh may add the first receipt without changing the selected period.
+        if (selected == null) chartPeriod += ":first=" + firstSpendingKey(state.getBars());
+        boolean periodChanged = !chartPeriod.equals(lastChartPeriod);
+        if (periodChanged) lastChartPeriod = chartPeriod;
+        final FragmentAnalyticsBinding currentBinding = binding;
+        // Resize while the viewport is measured, then position after the chart's new layout.
+        // A nested post() alone can execute before the HorizontalScrollView has its new range.
+        currentBinding.chartScroll.post(() -> {
+            if (binding != currentBinding || lastState != state) return;
+            int viewport = currentBinding.chartScroll.getWidth()
+                    - currentBinding.chartScroll.getPaddingLeft()
+                    - currentBinding.chartScroll.getPaddingRight();
+            if (viewport <= 0) return;
+            currentBinding.chart.setData(state.getBars(), state.getLevel(), selected, viewport);
+            if (!periodChanged) return; // Do not undo manual horizontal scrolling.
             int target = selected != null ? selected : firstSpendingKey(state.getBars());
-            if (target != -1) {
-                binding.chartScroll.post(() -> {
-                    if (binding == null) return;
-                    int centre = binding.chart.getCentreXForKey(target);
-                    if (centre >= 0) {
-                        int maxScroll = Math.max(0, binding.chart.getWidth() - binding.chartScroll.getWidth());
-                        int scrollX = Math.max(0, Math.min(maxScroll,
-                                centre - binding.chartScroll.getWidth() / 2));
-                        binding.chartScroll.smoothScrollTo(scrollX, 0);
-                    }
-                });
-            } else {
-                binding.chartScroll.post(() -> {
-                    if (binding != null) binding.chartScroll.scrollTo(0, 0);
-                });
-            }
-        }
+            // The scroll range is valid only after the next child measurement/layout.
+            currentBinding.chartScroll.postOnAnimation(() -> {
+                if (binding != currentBinding || lastState != state) return;
+                int centre = target == -1 ? -1 : currentBinding.chart.getCentreXForKey(target);
+                int available = currentBinding.chartScroll.getWidth()
+                        - currentBinding.chartScroll.getPaddingLeft()
+                        - currentBinding.chartScroll.getPaddingRight();
+                int content = Math.max(currentBinding.chart.getWidth(),
+                        currentBinding.chart.getMeasuredWidth());
+                int maxScroll = Math.max(0, content - available);
+                int x = centre < 0 ? 0 : Math.max(0,
+                        Math.min(maxScroll, centre - available / 2));
+                currentBinding.chartScroll.scrollTo(x, 0);
+                currentBinding.chart.invalidate();
+            });
+        });
         AnalyticsSummary summary = state.getSummary();
         binding.txtSelectedPeriod.setText(selectedPeriodText(state));
         binding.txtTotal.setText(money(summary.getTotalSpendingCents()));
@@ -151,10 +161,11 @@ public final class AnalyticsFragment extends Fragment {
     }
 
     private static int firstSpendingKey(Map<Integer, Long> bars) {
+        int first = Integer.MAX_VALUE;
         for (Map.Entry<Integer, Long> entry : bars.entrySet()) {
-            if (entry.getValue() > 0) return entry.getKey();
+            if (entry.getValue() > 0 && entry.getKey() < first) first = entry.getKey();
         }
-        return -1;
+        return first == Integer.MAX_VALUE ? -1 : first;
     }
 
     private static String selectedPeriodText(AnalyticsUiState state) {
