@@ -17,6 +17,7 @@ import com.example.nzreceiptapp.domain.service.IReceiptImageStore;
 import com.example.nzreceiptapp.domain.usecase.DeleteReceiptUseCase;
 import com.example.nzreceiptapp.domain.usecase.GetAllItemsPagedUseCase;
 import com.example.nzreceiptapp.domain.usecase.GetCategoriesUseCase;
+import com.example.nzreceiptapp.domain.usecase.GetAnalyticsUseCase;
 import com.example.nzreceiptapp.domain.usecase.GetReceiptByIdUseCase;
 import com.example.nzreceiptapp.domain.usecase.GetReceiptsPagedUseCase;
 import com.example.nzreceiptapp.domain.usecase.ParseReceiptUseCase;
@@ -43,6 +44,7 @@ public final class AppContainer {
     private final GetReceiptByIdUseCase getReceiptByIdUseCase;
     private final DeleteReceiptUseCase deleteReceiptUseCase;
     private final GetCategoriesUseCase getCategoriesUseCase;
+    private final GetAnalyticsUseCase getAnalyticsUseCase;
     private final IReceiptImageStore imageStore;
 
     public AppContainer(Context context) {
@@ -69,6 +71,7 @@ public final class AppContainer {
         getReceiptByIdUseCase = new GetReceiptByIdUseCase(receiptRepository);
         deleteReceiptUseCase = new DeleteReceiptUseCase(receiptRepository);
         getCategoriesUseCase = new GetCategoriesUseCase(categoryRepository);
+        getAnalyticsUseCase = new GetAnalyticsUseCase(receiptRepository);
     }
 
     Executor ioExecutor() {
@@ -105,6 +108,10 @@ public final class AppContainer {
 
     GetCategoriesUseCase getCategoriesUseCase() {
         return getCategoriesUseCase;
+    }
+
+    GetAnalyticsUseCase getAnalyticsUseCase() {
+        return getAnalyticsUseCase;
     }
 
     IReceiptImageStore imageStore() {

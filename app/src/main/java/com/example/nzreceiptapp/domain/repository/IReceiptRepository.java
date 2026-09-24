@@ -26,6 +26,13 @@ public interface IReceiptRepository {
      */
     List<Receipt> getAllReceipts();
 
+    /** Purchase-date period (inclusive start, exclusive end); excludes undated receipts. */
+    List<Receipt> getReceiptsBetween(LocalDateTime startInclusive,
+                                    LocalDateTime endExclusive);
+
+    /** Dated receipts only, for historical year chart. */
+    List<Receipt> getDatedReceipts();
+
     /**
      * 根據 ID 獲取單張發票
      */

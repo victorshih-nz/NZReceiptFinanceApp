@@ -43,6 +43,19 @@ public interface ReceiptDao {
     @Query("SELECT COUNT(*) FROM receipts")
     int countReceipts();
 
+    /** Inclusive start and exclusive end; @Transaction loads nested items consistently. */
+    @Transaction
+    @Query("SELECT * FROM receipts WHERE purchase_date >= :startInclusive "
+            + "AND purchase_date < :endExclusive "
+            + "ORDER BY purchase_date ASC, saved_sequence ASC")
+    List<ReceiptWithItems> getReceiptsBetween(LocalDateTime startInclusive,
+                                              LocalDateTime endExclusive);
+
+    @Transaction
+    @Query("SELECT * FROM receipts WHERE purchase_date IS NOT NULL "
+            + "ORDER BY purchase_date ASC, saved_sequence ASC")
+    List<ReceiptWithItems> getDatedReceipts();
+
     @Transaction
     default PageData<ReceiptWithItems> getReceiptsPage(int requestedPage, int pageSize) {
         if (requestedPage < 1) {

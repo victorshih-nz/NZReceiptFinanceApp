@@ -64,6 +64,21 @@ public class ReceiptRepositoryImpl implements IReceiptRepository {
     }
 
     @Override
+    public List<Receipt> getReceiptsBetween(LocalDateTime startInclusive,
+                                            LocalDateTime endExclusive) {
+        if (startInclusive == null || endExclusive == null
+                || !startInclusive.isBefore(endExclusive)) {
+            throw new IllegalArgumentException("Valid purchase-date boundaries required");
+        }
+        return mapReceipts(receiptDao.getReceiptsBetween(startInclusive, endExclusive));
+    }
+
+    @Override
+    public List<Receipt> getDatedReceipts() {
+        return mapReceipts(receiptDao.getDatedReceipts());
+    }
+
+    @Override
     public Receipt getReceiptById(String id) {
         ReceiptWithItems entity = receiptDao.getReceiptById(id);
         return entity != null ? mapToDomain(entity) : null;

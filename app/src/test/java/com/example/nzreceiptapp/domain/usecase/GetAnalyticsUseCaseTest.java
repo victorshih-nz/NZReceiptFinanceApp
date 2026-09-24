@@ -1,6 +1,7 @@
 package com.example.nzreceiptapp.domain.usecase;
 
 import static org.junit.Assert.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import com.example.nzreceiptapp.domain.model.AnalyticsPeriod;
@@ -35,6 +36,25 @@ public class GetAnalyticsUseCaseTest {
     @Before public void setUp() {
         MockitoAnnotations.openMocks(this);
         useCase = new GetAnalyticsUseCase(repository);
+        // Mock the repository's new bounded-query contract using in-memory fixtures.
+        when(repository.getReceiptsBetween(any(LocalDateTime.class), any(LocalDateTime.class)))
+                .thenAnswer(invocation -> {
+                    LocalDateTime start = invocation.getArgument(0);
+                    LocalDateTime end = invocation.getArgument(1);
+                    List<Receipt> all = repository.getAllReceipts();
+                    java.util.List<Receipt> result = new java.util.ArrayList<>();
+                    if (all != null) for (Receipt r : all) {
+                        if (r.getPurchaseDate() != null && !r.getPurchaseDate().isBefore(start)
+                                && r.getPurchaseDate().isBefore(end)) result.add(r);
+                    }
+                    return result;
+                });
+        when(repository.getDatedReceipts()).thenAnswer(invocation -> {
+            List<Receipt> all = repository.getAllReceipts();
+            java.util.List<Receipt> result = new java.util.ArrayList<>();
+            if (all != null) for (Receipt r : all) if (r.getPurchaseDate() != null) result.add(r);
+            return result;
+        });
     }
 
     private ReceiptItem item(String id, long priceCents, Category category, long itemDiscount) {

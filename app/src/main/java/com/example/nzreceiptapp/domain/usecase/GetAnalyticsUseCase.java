@@ -36,13 +36,14 @@ public class GetAnalyticsUseCase {
     /** Period calculation; undated receipts are excluded because the period is unknown. */
     public AnalyticsSummary execute(AnalyticsPeriod period) {
         if (period == null) throw new IllegalArgumentException("period is required");
-        return calculate(repository.getAllReceipts(), period);
+        return calculate(repository.getReceiptsBetween(
+                period.getStartInclusive(), period.getEndExclusive()), period);
     }
 
     /** Ascending year -> paid cents. Null purchase dates are omitted. */
     public Map<Integer, Long> getYearlyTotals() {
         Map<Integer, Long> totals = new TreeMap<>();
-        for (Receipt receipt : repository.getAllReceipts()) {
+        for (Receipt receipt : repository.getDatedReceipts()) {
             if (receipt.getPurchaseDate() != null) {
                 int year = receipt.getPurchaseDate().getYear();
                 totals.merge(year, receipt.getFinalPayableCents(), Long::sum);
@@ -56,7 +57,8 @@ public class GetAnalyticsUseCase {
         Map<Integer, Long> totals = new TreeMap<>();
         for (int month = 1; month <= 12; month++) totals.put(month, 0L);
         AnalyticsPeriod period = AnalyticsPeriod.year(year);
-        for (Receipt receipt : repository.getAllReceipts()) {
+        for (Receipt receipt : repository.getReceiptsBetween(
+                period.getStartInclusive(), period.getEndExclusive())) {
             LocalDateTime date = receipt.getPurchaseDate();
             if (period.contains(date)) {
                 totals.merge(date.getMonthValue(), receipt.getFinalPayableCents(), Long::sum);
@@ -71,7 +73,8 @@ public class GetAnalyticsUseCase {
         Map<Integer, Long> totals = new TreeMap<>();
         for (int day = 1; day <= month.lengthOfMonth(); day++) totals.put(day, 0L);
         AnalyticsPeriod period = AnalyticsPeriod.month(month);
-        for (Receipt receipt : repository.getAllReceipts()) {
+        for (Receipt receipt : repository.getReceiptsBetween(
+                period.getStartInclusive(), period.getEndExclusive())) {
             LocalDateTime date = receipt.getPurchaseDate();
             if (period.contains(date)) {
                 totals.merge(date.getDayOfMonth(), receipt.getFinalPayableCents(), Long::sum);

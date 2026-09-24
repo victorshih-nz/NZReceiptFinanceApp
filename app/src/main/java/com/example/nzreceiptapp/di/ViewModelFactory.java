@@ -4,9 +4,12 @@ import androidx.annotation.NonNull;
 import androidx.lifecycle.ViewModel;
 import androidx.lifecycle.ViewModelProvider;
 
+import com.example.nzreceiptapp.presentation.viewmodel.AnalyticsViewModel;
 import com.example.nzreceiptapp.presentation.viewmodel.HistoryViewModel;
 import com.example.nzreceiptapp.presentation.viewmodel.ReceiptDetailViewModel;
 import com.example.nzreceiptapp.presentation.viewmodel.ScannerViewModel;
+
+import java.time.Clock;
 
 /** Creates ViewModels from dependencies owned by the application container. */
 public final class ViewModelFactory implements ViewModelProvider.Factory {
@@ -42,6 +45,13 @@ public final class ViewModelFactory implements ViewModelProvider.Factory {
             return (T) new ReceiptDetailViewModel(
                     container.getReceiptByIdUseCase(),
                     container.ioExecutor()
+            );
+        }
+        if (modelClass.isAssignableFrom(AnalyticsViewModel.class)) {
+            return (T) new AnalyticsViewModel(
+                    container.getAnalyticsUseCase(),
+                    container.ioExecutor(),
+                    Clock.systemDefaultZone()
             );
         }
         throw new IllegalArgumentException("Unknown ViewModel class: " + modelClass.getName());
