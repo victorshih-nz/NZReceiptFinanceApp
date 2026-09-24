@@ -70,6 +70,14 @@ public class HistoryFragment extends Fragment {
         viewModel.loadInitialData();
     }
 
+    @Override
+    public void onResume() {
+        super.onResume();
+        // Re-query after returning from Scanner/Review, so newly saved receipts appear.
+        // loadPage coalesces this with an in-flight initial request.
+        if (viewModel != null) viewModel.refresh();
+    }
+
     private void setupTabs() {
         binding.tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
             @Override
