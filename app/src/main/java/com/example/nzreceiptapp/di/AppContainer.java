@@ -2,6 +2,7 @@ package com.example.nzreceiptapp.di;
 
 import android.content.Context;
 
+import com.example.nzreceiptapp.data.image.OpenCvReceiptImagePreprocessor;
 import com.example.nzreceiptapp.data.local.AppDatabase;
 import com.example.nzreceiptapp.data.local.BundledCategoryInitializer;
 import com.example.nzreceiptapp.data.local.LocalReceiptImageStore;
@@ -13,6 +14,7 @@ import com.example.nzreceiptapp.domain.logic.CategoryClassifier;
 import com.example.nzreceiptapp.domain.repository.ICategoryRepository;
 import com.example.nzreceiptapp.domain.repository.IReceiptRepository;
 import com.example.nzreceiptapp.domain.service.IOCRService;
+import com.example.nzreceiptapp.domain.service.IReceiptImagePreprocessor;
 import com.example.nzreceiptapp.domain.service.IReceiptImageStore;
 import com.example.nzreceiptapp.domain.usecase.DeleteReceiptUseCase;
 import com.example.nzreceiptapp.domain.usecase.GetAllItemsPagedUseCase;
@@ -23,16 +25,10 @@ import com.example.nzreceiptapp.domain.usecase.GetReceiptsPagedUseCase;
 import com.example.nzreceiptapp.domain.usecase.ParseReceiptUseCase;
 import com.example.nzreceiptapp.domain.usecase.SaveReceiptUseCase;
 
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/**
- * Composition root for the app.
- *
- * This is the only place where concrete data implementations are connected to
- * domain interfaces. Presentation classes receive ready-to-use dependencies.
- */
+/** Composition root for the app. */
 public final class AppContainer {
     private final ExecutorService ioExecutor = Executors.newFixedThreadPool(2);
 
@@ -46,6 +42,7 @@ public final class AppContainer {
     private final GetCategoriesUseCase getCategoriesUseCase;
     private final GetAnalyticsUseCase getAnalyticsUseCase;
     private final IReceiptImageStore imageStore;
+    private final IReceiptImagePreprocessor imagePreprocessor;
 
     public AppContainer(Context context) {
         Context applicationContext = context.getApplicationContext();
@@ -54,6 +51,8 @@ public final class AppContainer {
         ICategoryRepository categoryRepository =
                 new CategoryRepositoryImpl(database.categoryDao());
         imageStore = new LocalReceiptImageStore(applicationContext);
+        imagePreprocessor = new OpenCvReceiptImagePreprocessor(applicationContext);
+
         IReceiptRepository receiptRepository =
                 new ReceiptRepositoryImpl(database.receiptDao(), imageStore);
 
@@ -74,47 +73,16 @@ public final class AppContainer {
         getAnalyticsUseCase = new GetAnalyticsUseCase(receiptRepository);
     }
 
-    Executor ioExecutor() {
-        return ioExecutor;
-    }
-
-    IOCRService ocrService() {
-        return ocrService;
-    }
-
-    ParseReceiptUseCase parseReceiptUseCase() {
-        return parseReceiptUseCase;
-    }
-
-    SaveReceiptUseCase saveReceiptUseCase() {
-        return saveReceiptUseCase;
-    }
-
-    GetReceiptsPagedUseCase getReceiptsPagedUseCase() {
-        return getReceiptsPagedUseCase;
-    }
-
-    GetAllItemsPagedUseCase getAllItemsPagedUseCase() {
-        return getAllItemsPagedUseCase;
-    }
-
-    GetReceiptByIdUseCase getReceiptByIdUseCase() {
-        return getReceiptByIdUseCase;
-    }
-
-    DeleteReceiptUseCase deleteReceiptUseCase() {
-        return deleteReceiptUseCase;
-    }
-
-    GetCategoriesUseCase getCategoriesUseCase() {
-        return getCategoriesUseCase;
-    }
-
-    GetAnalyticsUseCase getAnalyticsUseCase() {
-        return getAnalyticsUseCase;
-    }
-
-    IReceiptImageStore imageStore() {
-        return imageStore;
-    }
+    ExecutorService ioExecutor() { return ioExecutor; }
+    IOCRService ocrService() { return ocrService; }
+    ParseReceiptUseCase parseReceiptUseCase() { return parseReceiptUseCase; }
+    SaveReceiptUseCase saveReceiptUseCase() { return saveReceiptUseCase; }
+    GetReceiptsPagedUseCase getReceiptsPagedUseCase() { return getReceiptsPagedUseCase; }
+    GetAllItemsPagedUseCase getAllItemsPagedUseCase() { return getAllItemsPagedUseCase; }
+    GetReceiptByIdUseCase getReceiptByIdUseCase() { return getReceiptByIdUseCase; }
+    DeleteReceiptUseCase deleteReceiptUseCase() { return deleteReceiptUseCase; }
+    GetCategoriesUseCase getCategoriesUseCase() { return getCategoriesUseCase; }
+    GetAnalyticsUseCase getAnalyticsUseCase() { return getAnalyticsUseCase; }
+    IReceiptImageStore imageStore() { return imageStore; }
+    IReceiptImagePreprocessor imagePreprocessor() { return imagePreprocessor; }
 }

@@ -11,9 +11,18 @@
         android:label="@string/title_scanner"
         tools:layout="@layout/fragment_scanner">
         <action
+            android:id="@+id/action_scanner_to_cropReview"
+            app:destination="@id/receiptCropReviewFragment" />
+        <action
             android:id="@+id/action_scanner_to_receiptReview"
             app:destination="@id/receiptReviewFragment" />
     </fragment>
+
+    <fragment
+        android:id="@+id/receiptCropReviewFragment"
+        android:name="com.example.nzreceiptapp.presentation.view.ReceiptCropReviewFragment"
+        android:label="Adjust receipt"
+        tools:layout="@layout/fragment_receipt_crop_review" />
 
     <fragment
         android:id="@+id/receiptReviewFragment"
@@ -39,5 +48,4 @@
             android:name="receiptId"
             app:argType="string" />
     </fragment>
-
 </navigation>

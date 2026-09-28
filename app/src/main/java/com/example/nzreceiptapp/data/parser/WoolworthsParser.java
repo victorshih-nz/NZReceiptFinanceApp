@@ -10,178 +10,82 @@ import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * 專門解析紐西蘭 Woolworths 收據文字的解析器 (Data Layer)
- */
+/** Woolworths: first product line may contain total; @ continuation supplies unit/quantity. */
 public class WoolworthsParser implements IReceiptParser {
+    private static final Pattern ITEM = Pattern.compile("^([\\^*#]?)\\s*(.+?)\\s+\\$?(\\d+\\.\\d{2})\\s*(?:[GN*])?\\s*$");
+    private static final Pattern TOTAL = Pattern.compile("(?im)^\\s*TOTAL(?:\\s+DUE)?\\s+\\$?\\s*(\\d+\\.\\d{2})\\s*$");
+    private static final Pattern STOP = Pattern.compile("(?i)^(?:\\d+\\s+)?(?:SUB\\s*TOTAL|TOTAL(?:\\s+DUE)?|EFTPOS|CASH|CHANGE|ROUNDING|GST|VISA|MASTERCARD|PAYMENT)\\b.*");
 
-    // 第一層：擷取品名與總價，捕捉前綴 ^, *, #，忽略稅務代碼 G, N, *
-    private static final Pattern ITEM_PATTERN = Pattern.compile("^([\\^\\*#]?)\\s*(.+?)\\s+(\\d+\\.\\d+)\\s*(?:[GN*])?\\s*$");
-
-    // 多件模式：支援 "2 @ 1.50", "Qty 2 @ 1.50 each", "$1.50 each"
-    private static final Pattern MULTI_BUY_INFO = Pattern.compile("(?:Qty\\s*)?(\\d+(?:\\.\\d+)?)\\s*@\\s*\\$?(\\d+\\.\\d+)(?:\\s*each)?");
-
-    // 秤重模式：支援 "0 520 kg NET @ $1.95/kg"
-    private static final Pattern WEIGHTED_INFO = Pattern.compile("(\\d+[\\s.]\\d+)\\s*kg\\s*(?:NET\\s*)?@\\s*\\$?(\\d+\\.\\d+)\\s*/kg");
-
-    // 純多件折落模式 (不含總價在同行的狀況)
-    private static final Pattern MULTI_BUY_ONLY = Pattern.compile("^\\s*(\\d+(?:\\.\\d+)?)\\s*@\\s*\\$?(\\d+\\.\\d+)\\s*$");
-
-    private static final Pattern PRINTED_TOTAL_PATTERN = Pattern.compile(
-            "(?im)^\\s*TOTAL(?:\\s+DUE)?\\s+\\$?\\s*(\\d+\\.\\d{2})\\s*$");
-
-    private List<ReceiptItem> parseItems(String rawText) {
+    @Override public ParsedReceipt parse(String rawText) {
         List<ReceiptItem> items = new ArrayList<>();
-        if (rawText == null || rawText.trim().isEmpty()) {
-            return items;
-        }
-
-        String pendingItemName = null;
-        boolean pendingIsSpecial = false;
-        String[] lines = rawText.split("\\n");
-        for (String line : lines) {
-            String trimmedLine = line.trim();
-            if (trimmedLine.isEmpty()) {
-                continue;
+        String pending = null;
+        boolean pendingSpecial = false;
+        if (rawText != null) for (String raw : rawText.split("\\r?\\n")) {
+            String line = raw.trim();
+            if (line.isEmpty()) continue;
+            if (STOP.matcher(line).matches() || isMetadata(line)) {
+                pending = null; pendingSpecial = false; continue;
             }
-
-            // 1. 關鍵字過濾
-            if (isTransactionMetadata(trimmedLine)) {
-                // 如果是 metadata，應該清空 pendingItemName，避免誤用到下一個品項
-                pendingItemName = null;
-                continue;
-            }
-
-            // 2. 處理「純多件折落行」(上一行的延續，無總價在同行)
-            Matcher multiOnlyMatcher = MULTI_BUY_ONLY.matcher(line);
-            if (multiOnlyMatcher.matches()) {
-                if (!items.isEmpty()) {
-                    ReceiptItem lastItem = items.remove(items.size() - 1);
-                    double qty = Double.parseDouble(multiOnlyMatcher.group(1));
-                    long unitPriceCents = Math.round(Double.parseDouble(multiOnlyMatcher.group(2)) * 100);
-                    
-                    ReceiptItem updatedItem = new ReceiptItem(
-                        lastItem.getId(),
-                        lastItem.getRawName(),
-                        lastItem.getCleanedName(),
-                        qty,
-                        lastItem.getUnit(),
-                        unitPriceCents,
-                        lastItem.getDiscounts(),
-                        lastItem.getCategory(),
-                        lastItem.getSpecialMk()
-                    );
-                    items.add(updatedItem);
-                }
-                continue;
-            }
-
-            // 3. 標準品項 (品名 + 總價)
-            Matcher itemMatcher = ITEM_PATTERN.matcher(trimmedLine);
-            if (itemMatcher.matches()) {
-                String prefix = itemMatcher.group(1);
-                String rawNameFromMatch = itemMatcher.group(2).trim();
-                double totalPrice = Double.parseDouble(itemMatcher.group(3));
-
-                String name = rawNameFromMatch;
-                double quantity = 1.0;
-                String unit = "ea";
-                long unitPriceCents = Math.round(totalPrice * 100);
-                boolean isSpecial = "^".equals(prefix) || pendingIsSpecial;
-
-                // 檢查是否為秤重資訊
-                Matcher weightMatcher = WEIGHTED_INFO.matcher(rawNameFromMatch);
-                if (weightMatcher.find()) {
-                    String qtyStr = weightMatcher.group(1).replace(" ", ".");
-                    quantity = Double.parseDouble(qtyStr);
-                    unitPriceCents = Math.round(Double.parseDouble(weightMatcher.group(2)) * 100);
-                    unit = "kg";
-                    
-                    if (pendingItemName != null) {
-                        name = pendingItemName;
-                    } else {
-                        String namePrefix = rawNameFromMatch.substring(0, weightMatcher.start()).trim();
-                        name = namePrefix.isEmpty() ? "Unknown Weighted" : namePrefix;
-                    }
-                } 
-                // 檢查是否為多件資訊
-                else {
-                    Matcher multiInfoMatcher = MULTI_BUY_INFO.matcher(rawNameFromMatch);
-                    if (multiInfoMatcher.find()) {
-                        quantity = Double.parseDouble(multiInfoMatcher.group(1));
-                        unitPriceCents = Math.round(Double.parseDouble(multiInfoMatcher.group(2)) * 100);
-                        
-                        if (pendingItemName != null) {
-                            name = pendingItemName;
-                        } else {
-                            String namePrefix = rawNameFromMatch.substring(0, multiInfoMatcher.start()).trim();
-                            name = namePrefix.isEmpty() ? "Unknown Multi" : namePrefix;
-                        }
-                    } else {
-                        // 一般品項，直接使用 rawNameFromMatch，除非它非常短且有 pendingItemName
-                        if (pendingItemName != null && rawNameFromMatch.length() < 3) {
-                             name = pendingItemName + " " + rawNameFromMatch;
-                        } else {
-                             name = rawNameFromMatch;
+            // Recognise '@' before considering line-ending monetary amounts.
+            if (line.contains("@")) {
+                // Some old OCR fixtures embed a name before the @ continuation and a trailing total.
+                int qtyStart = findQuantityStart(line);
+                String quantityPart = qtyStart >= 0 ? line.substring(qtyStart).trim() : line;
+                QuantityLine q = QuantityLine.parse(quantityPart);
+                if (q != null) {
+                    String inlineName = qtyStart > 0 ? line.substring(0, qtyStart).trim() : "";
+                    if (pending != null || !inlineName.isEmpty()) {
+                        String name = pending != null ? pending : inlineName.replaceFirst("^[\\^*#]\\s*", "");
+                        boolean isSpecial = pendingSpecial || inlineName.startsWith("^");
+                        items.add(new ReceiptItem(UUID.randomUUID().toString(), name, name,
+                                q.quantity, q.unit, q.unitPriceCents, Collections.emptyList(), null, isSpecial));
+                        pending = null; pendingSpecial = false;
+                    } else if (!items.isEmpty()) {
+                        ReceiptItem prev = items.get(items.size() - 1);
+                        if (prev.getQuantity() == 1.0 && "ea".equals(prev.getUnit()) &&
+                                (q.printedSubtotalCents == null ||
+                                        Math.abs(prev.getOriginalSubtotalCents() - q.printedSubtotalCents) <= 1) &&
+                                Math.abs(prev.getOriginalSubtotalCents() - Math.round(q.quantity * q.unitPriceCents)) <= 1) {
+                            items.set(items.size() - 1, new ReceiptItem(prev.getId(), prev.getRawName(),
+                                    prev.getCleanedName(), q.quantity, q.unit, q.unitPriceCents,
+                                    prev.getDiscounts(), prev.getCategory(), prev.getSpecialMk()));
                         }
                     }
                 }
-
-                ReceiptItem item = new ReceiptItem(
-                    UUID.randomUUID().toString(),
-                    rawNameFromMatch,
-                    name,
-                    quantity,
-                    unit,
-                    unitPriceCents,
-                    Collections.emptyList(),
-                    null,
-                    isSpecial
-                );
-
-                items.add(item);
-                pendingItemName = null;
-                pendingIsSpecial = false;
-            } else {
-                // 如果沒有總價，可能是品名行
-                if (trimmedLine.length() > 2) {
-                    pendingIsSpecial = trimmedLine.startsWith("^");
-                    pendingItemName = trimmedLine.replaceAll("^[\\^\\*#]\\s*", "").trim();
-                }
+                // Never reinterpret a failed @ line as a new product.
+                continue;
+            }
+            Matcher item = ITEM.matcher(line);
+            if (item.matches()) {
+                String prefix = item.group(1);
+                String name = item.group(2).trim();
+                if (pending != null && name.length() < 3) name = pending + " " + name;
+                long cents = Math.round(Double.parseDouble(item.group(3)) * 100);
+                items.add(new ReceiptItem(UUID.randomUUID().toString(), name, name, 1.0, "ea", cents,
+                        Collections.emptyList(), null, "^".equals(prefix) || pendingSpecial));
+                pending = null; pendingSpecial = false;
+            } else if (line.length() > 2) {
+                pendingSpecial = line.startsWith("^");
+                pending = line.replaceFirst("^[\\^*#]\\s*", "").trim();
             }
         }
-
-        return items;
+        Matcher total = TOTAL.matcher(rawText == null ? "" : rawText);
+        Long printed = total.find() ? Math.round(Double.parseDouble(total.group(1)) * 100) : null;
+        return new ParsedReceipt(items, printed);
     }
 
-    @Override
-    public ParsedReceipt parse(String rawText) {
-        List<ReceiptItem> items = parseItems(rawText);
-        Matcher matcher = PRINTED_TOTAL_PATTERN.matcher(rawText == null ? "" : rawText);
-        Long total = matcher.find()
-                ? Math.round(Double.parseDouble(matcher.group(1)) * 100)
-                : null;
-        return new ParsedReceipt(items, total);
+    private static int findQuantityStart(String line) {
+        Matcher matcher = Pattern.compile("(?i)(?:Qty\\s*)?\\d+(?:[ .]\\d{1,3})?\\s*(?:kg|g)?\\s*(?:NET\\s*)?@").matcher(line);
+        int start = -1;
+        while (matcher.find()) start = matcher.start();
+        return start;
     }
-
-    private boolean isTransactionMetadata(String line) {
-        String upper = line.toUpperCase();
-        return upper.startsWith("TOTAL") ||
-                upper.contains("SUBTOTAL") ||
-                upper.startsWith("EFTPOS") ||
-                upper.startsWith("CASH") ||
-                upper.startsWith("STORE ") ||
-                upper.contains("TAX INVOICE") ||
-                upper.contains("WELCOME") ||
-                upper.contains("THANK YOU") ||
-                upper.contains("DUPLICATE") ||
-                upper.contains("GREENLANE") ||
-                upper.contains("GREAT SOUTH ROAD") ||
-                upper.contains("VISA DEBIT") ||
-                upper.contains("NZ$") ||
-                upper.contains("TERM ID") ||
-                upper.contains("PH:") ||
-                upper.contains("WOOLWORTHS") ||
-                upper.contains("PAK'NSAVE");
+    private static boolean isMetadata(String line) {
+        String u = line.toUpperCase(java.util.Locale.ROOT);
+        return u.startsWith("STORE ") || u.contains("TAX INVOICE") || u.contains("WELCOME") ||
+                u.contains("THANK YOU") || u.contains("DUPLICATE") || u.contains("GREENLANE") ||
+                u.contains("GREAT SOUTH ROAD") || u.contains("VISA DEBIT") || u.contains("NZ$") ||
+                u.contains("TERM ID") || u.contains("PH:") || u.contains("WOOLWORTHS") ||
+                u.contains("PAK'NSAVE") || u.startsWith("CARD:") || u.startsWith("TVR ");
     }
 }

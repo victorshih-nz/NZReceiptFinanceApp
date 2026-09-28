@@ -74,16 +74,24 @@ dependencies {
     androidTestImplementation libs.espresso.core
     androidTestImplementation libs.ext.junit
     androidTestImplementation "androidx.room:room-testing:2.6.1"
-    // Room Database (本地 SQLite ORM)
+
+    // Room Database
     implementation "androidx.room:room-runtime:2.6.1"
     annotationProcessor "androidx.room:room-compiler:2.6.1"
 
-    // 單元測試庫（讓我們不用開模擬器就能在 VS Code 跑測試）
+    // Local JVM tests
     testImplementation "junit:junit:4.13.2"
     testImplementation "org.mockito:mockito-core:5.11.0"
     testImplementation "androidx.arch.core:core-testing:2.2.0"
 
     // Google ML Kit Text Recognition
     implementation 'com.google.android.gms:play-services-mlkit-text-recognition:19.0.1'
+
+    // Image preprocessing. Official OpenCV Android AAR, Apache License 2.0.
+    implementation "org.opencv:opencv:4.14.0"
+
+    // Read camera/gallery orientation metadata before perspective correction.
+    implementation "androidx.exifinterface:exifinterface:1.4.2"
+
     implementation "androidx.swiperefreshlayout:swiperefreshlayout:1.1.0"
 }

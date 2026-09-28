@@ -15,9 +15,7 @@ import java.time.Clock;
 public final class ViewModelFactory implements ViewModelProvider.Factory {
     private final AppContainer container;
 
-    public ViewModelFactory(AppContainer container) {
-        this.container = container;
-    }
+    public ViewModelFactory(AppContainer container) { this.container = container; }
 
     @NonNull
     @Override
@@ -30,29 +28,26 @@ public final class ViewModelFactory implements ViewModelProvider.Factory {
                     container.saveReceiptUseCase(),
                     container.getCategoriesUseCase(),
                     container.imageStore(),
-                    container.ioExecutor()
-            );
+                    container.imagePreprocessor(),
+                    container.ioExecutor());
         }
         if (modelClass.isAssignableFrom(HistoryViewModel.class)) {
             return (T) new HistoryViewModel(
                     container.getReceiptsPagedUseCase(),
                     container.getAllItemsPagedUseCase(),
                     container.deleteReceiptUseCase(),
-                    container.ioExecutor()
-            );
+                    container.ioExecutor());
         }
         if (modelClass.isAssignableFrom(ReceiptDetailViewModel.class)) {
             return (T) new ReceiptDetailViewModel(
                     container.getReceiptByIdUseCase(),
-                    container.ioExecutor()
-            );
+                    container.ioExecutor());
         }
         if (modelClass.isAssignableFrom(AnalyticsViewModel.class)) {
             return (T) new AnalyticsViewModel(
                     container.getAnalyticsUseCase(),
                     container.ioExecutor(),
-                    Clock.systemDefaultZone()
-            );
+                    Clock.systemDefaultZone());
         }
         throw new IllegalArgumentException("Unknown ViewModel class: " + modelClass.getName());
     }

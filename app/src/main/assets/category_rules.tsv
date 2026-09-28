@@ -1,42 +1,737 @@
 # keyword	parent category	subcategory
+# Classification is based on ITEM/PRODUCT NAME only.
+# Do not add unit/package tokens such as kg, g, ml, l, pk, pack, ea, btl.
+
+# -----------------------------
+# FOOD — DAIRY & EGGS
+# -----------------------------
+milk powder	Food	Dairy & Eggs
+standard milk	Food	Dairy & Eggs
+full cream milk	Food	Dairy & Eggs
+trim milk	Food	Dairy & Eggs
+lite milk	Food	Dairy & Eggs
+almond milk	Food	Dairy & Eggs
+oat milk	Food	Dairy & Eggs
+soy milk	Food	Dairy & Eggs
 milk	Food	Dairy & Eggs
+cheddar	Food	Dairy & Eggs
+mozzarella	Food	Dairy & Eggs
+parmesan	Food	Dairy & Eggs
 cheese	Food	Dairy & Eggs
+cream cheese	Food	Dairy & Eggs
+sour cream	Food	Dairy & Eggs
 yoghurt	Food	Dairy & Eggs
 yogurt	Food	Dairy & Eggs
+natural yog	Food	Dairy & Eggs
+butter	Food	Dairy & Eggs
+margarine	Food	Dairy & Eggs
+eggs	Food	Dairy & Eggs
 egg	Food	Dairy & Eggs
+
+# -----------------------------
+# FOOD — BAKERY
+# -----------------------------
+toast bread	Food	Bakery
+white toast	Food	Bakery
+wholemeal bread	Food	Bakery
+grain bread	Food	Bakery
+sandwich bread	Food	Bakery
+garlic bread	Food	Bakery
 bread	Food	Bakery
-roll	Food	Bakery
 croissant	Food	Bakery
-chicken	Food	Meat
+bagel	Food	Bakery
+muffin	Food	Bakery
+scone	Food	Bakery
+bread roll	Food	Bakery
+burger bun	Food	Bakery
+hot dog bun	Food	Bakery
+wraps	Food	Bakery
+tortilla	Food	Bakery
+
+# -----------------------------
+# FOOD — MEAT
+# -----------------------------
+beef schnitzel	Food	Meat
+beef chuck	Food	Meat
+beef steak	Food	Meat
+beef mince	Food	Meat
+corned beef	Food	Meat
 beef	Food	Meat
+chicken wings	Food	Meat
+chicken breast	Food	Meat
+chicken thigh	Food	Meat
+chicken drumstick	Food	Meat
+roast chicken	Food	Meat
+chicken	Food	Meat
+pork chop	Food	Meat
+pork belly	Food	Meat
+pork mince	Food	Meat
 pork	Food	Meat
+lamb chop	Food	Meat
+lamb leg	Food	Meat
 lamb	Food	Meat
+sausage	Food	Meat
+sausages	Food	Meat
+bacon	Food	Meat
+ham	Food	Meat
+salami	Food	Meat
+
+# -----------------------------
+# FOOD — SEAFOOD
+# -----------------------------
+smoked salmon	Food	Seafood
 salmon	Food	Seafood
+tuna	Food	Seafood
+fish fillet	Food	Seafood
 fish	Food	Seafood
-apple	Food	Fruit
-banana	Food	Fruit
-orange	Food	Fruit
+prawn	Food	Seafood
+prawns	Food	Seafood
+shrimp	Food	Seafood
+mussel	Food	Seafood
+mussels	Food	Seafood
+oyster	Food	Seafood
+seafood	Food	Seafood
+
+# -----------------------------
+# FOOD — FRUIT
+# -----------------------------
 kiwifruit	Food	Fruit
+kiwi fruit	Food	Fruit
+banana	Food	Fruit
+apple	Food	Fruit
+orange	Food	Fruit
+mandarin	Food	Fruit
+pear	Food	Fruit
+grape	Food	Fruit
+grapes	Food	Fruit
+strawberry	Food	Fruit
+strawberries	Food	Fruit
+blueberry	Food	Fruit
+blueberries	Food	Fruit
+raspberry	Food	Fruit
+watermelon	Food	Fruit
+melon	Food	Fruit
+pineapple	Food	Fruit
+mango	Food	Fruit
+avocado	Food	Fruit
+lemon	Food	Fruit
+lime	Food	Fruit
+peach	Food	Fruit
+nectarine	Food	Fruit
+plum	Food	Fruit
+
+# -----------------------------
+# FOOD — VEGETABLES
+# -----------------------------
+sweet potato	Food	Vegetables
 potato	Food	Vegetables
+red onion	Food	Vegetables
+brown onion	Food	Vegetables
+spring onion	Food	Vegetables
 onion	Food	Vegetables
 tomato	Food	Vegetables
+cherry tomato	Food	Vegetables
 broccoli	Food	Vegetables
+cauliflower	Food	Vegetables
+carrot	Food	Vegetables
+capsicum	Food	Vegetables
+mushroom	Food	Vegetables
+spinach	Food	Vegetables
+lettuce	Food	Vegetables
+cabbage	Food	Vegetables
+cucumber	Food	Vegetables
+courgette	Food	Vegetables
+zucchini	Food	Vegetables
+pumpkin	Food	Vegetables
+celery	Food	Vegetables
+beans	Food	Vegetables
+green beans	Food	Vegetables
+peas	Food	Vegetables
+corn cob	Food	Vegetables
+basil	Food	Vegetables
+coriander	Food	Vegetables
+parsley	Food	Vegetables
+ginger	Food	Vegetables
+garlic	Food	Vegetables
+
+# -----------------------------
+# FOOD — FROZEN FOOD
+# -----------------------------
+frozen strawberries	Food	Frozen Food
+frozen strawberry	Food	Frozen Food
+frozen berries	Food	Frozen Food
+frozen vegetables	Food	Frozen Food
+frozen veg	Food	Frozen Food
+frozen peas	Food	Frozen Food
+frozen corn	Food	Frozen Food
+frozen chips	Food	Frozen Food
+frozen fries	Food	Frozen Food
+frozen pizza	Food	Frozen Food
+ice cream	Food	Frozen Food
+
+# -----------------------------
+# FOOD — PANTRY
+# -----------------------------
+sushi rice	Food	Pantry
+medium grain	Food	Pantry
+long grain rice	Food	Pantry
+jasmine rice	Food	Pantry
+basmati rice	Food	Pantry
+brown rice	Food	Pantry
 rice	Food	Pantry
+farfalle	Food	Pantry
+spaghetti	Food	Pantry
+macaroni	Food	Pantry
+pasta spirals	Food	Pantry
 pasta	Food	Pantry
+noodles	Food	Pantry
+noodle	Food	Pantry
+plain flour	Food	Pantry
+self raising flour	Food	Pantry
 flour	Food	Pantry
+corn whole kernel	Food	Pantry
+whole kernel corn	Food	Pantry
+canned corn	Food	Pantry
+canned beans	Food	Pantry
+baked beans	Food	Pantry
+canned tomato	Food	Pantry
+tomato paste	Food	Pantry
+tomato puree	Food	Pantry
+coconut milk	Food	Pantry
+stock powder	Food	Pantry
+stock cube	Food	Pantry
+soup	Food	Pantry
+gherkin	Food	Pantry
+gherkins	Food	Pantry
+pickle	Food	Pantry
+pickles	Food	Pantry
+
+# -----------------------------
+# FOOD — BREAKFAST
+# -----------------------------
+corn flakes	Food	Breakfast
+weet bix	Food	Breakfast
+muesli	Food	Breakfast
+granola	Food	Breakfast
 cereal	Food	Breakfast
+rolled oats	Food	Breakfast
 oats	Food	Breakfast
+porridge	Food	Breakfast
+
+# -----------------------------
+# FOOD — SNACKS & CONFECTIONERY
+# -----------------------------
+corn chips	Food	Snacks
+potato chips	Food	Snacks
+cheezels	Food	Snacks
+extruded snack	Food	Snacks
+seaweed snack	Food	Snacks
+fruit bits	Food	Snacks
+mini tubes	Food	Snacks
+kinder surprise	Food	Snacks
+skittles	Food	Snacks
+popcorn	Food	Snacks
 chocolate	Food	Snacks
-chips	Food	Snacks
+brownie	Food	Snacks
+lollies	Food	Snacks
+candy	Food	Snacks
 biscuit	Food	Snacks
+biscuits	Food	Snacks
+cookie	Food	Snacks
+cookies	Food	Snacks
+cracker	Food	Snacks
+crackers	Food	Snacks
+pretzel	Food	Snacks
+muesli bar	Food	Snacks
+protein bar	Food	Snacks
+snack bar	Food	Snacks
+
+# -----------------------------
+# FOOD — DRINKS
+# -----------------------------
+ginger ale	Food	Drinks
+soda water	Food	Drinks
+sparkling water	Food	Drinks
+mineral water	Food	Drinks
+coconut water	Food	Drinks
+coffee mix	Food	Drinks
+cappuccino	Food	Drinks
+latte	Food	Drinks
+espresso	Food	Drinks
 coffee	Food	Drinks
+fruit tea	Food	Drinks
+green tea	Food	Drinks
+black tea	Food	Drinks
+tea bags	Food	Drinks
 tea	Food	Drinks
+orange juice	Food	Drinks
+apple juice	Food	Drinks
 juice	Food	Drinks
-detergent	Household	Cleaning
+soft drink	Food	Drinks
+cola	Food	Drinks
+lemonade	Food	Drinks
+energy drink	Food	Drinks
+sports drink	Food	Drinks
+water	Food	Drinks
+
+# -----------------------------
+# FOOD — CONDIMENTS & SAUCES
+# -----------------------------
+ranch dressing	Food	Condiments & Sauces
+dressing ranch	Food	Condiments & Sauces
+salad dressing	Food	Condiments & Sauces
+dressing	Food	Condiments & Sauces
+tomato sauce	Food	Condiments & Sauces
+bbq sauce	Food	Condiments & Sauces
+soy sauce	Food	Condiments & Sauces
+fish sauce	Food	Condiments & Sauces
+oyster sauce	Food	Condiments & Sauces
+chilli sauce	Food	Condiments & Sauces
+hot sauce	Food	Condiments & Sauces
+mustard	Food	Condiments & Sauces
+mayonnaise	Food	Condiments & Sauces
+mayo	Food	Condiments & Sauces
+white wine vinegar	Food	Condiments & Sauces
+apple cider vinegar	Food	Condiments & Sauces
+vinegar	Food	Condiments & Sauces
+olive oil	Food	Condiments & Sauces
+canola oil	Food	Condiments & Sauces
+cooking oil	Food	Condiments & Sauces
+
+# -----------------------------
+# FOOD — BAKING
+# -----------------------------
+brownie mix	Food	Baking
+cake mix	Food	Baking
+baking powder	Food	Baking
+baking soda	Food	Baking
+icing sugar	Food	Baking
+caster sugar	Food	Baking
+brown sugar	Food	Baking
+sugar	Food	Baking
+vanilla essence	Food	Baking
+cocoa powder	Food	Baking
+chocolate chips	Food	Baking
+
+# -----------------------------
+# HOUSEHOLD — CLEANING
+# -----------------------------
+dishwashing liquid	Household	Cleaning
+dishwashing tablets	Household	Cleaning
+dishwasher tablets	Household	Cleaning
+dishwasher powder	Household	Cleaning
+dish soap	Household	Cleaning
+surface cleaner	Household	Cleaning
+glass cleaner	Household	Cleaning
+bathroom cleaner	Household	Cleaning
+toilet cleaner	Household	Cleaning
+floor cleaner	Household	Cleaning
+cleaning spray	Household	Cleaning
 cleaner	Household	Cleaning
+bleach	Household	Cleaning
+disinfectant	Household	Cleaning
+sponges	Household	Cleaning
+sponge	Household	Cleaning
+scrub	Household	Cleaning
+
+# -----------------------------
+# HOUSEHOLD — LAUNDRY
+# -----------------------------
+laundry detergent	Household	Laundry
+washing powder	Household	Laundry
+washing liquid	Household	Laundry
+fabric softener	Household	Laundry
+stain remover	Household	Laundry
+laundry	Household	Laundry
+
+# -----------------------------
+# HOUSEHOLD — PAPER PRODUCTS
+# -----------------------------
 toilet paper	Household	Paper Products
+toilet tissue	Household	Paper Products
+paper towel	Household	Paper Products
+paper towels	Household	Paper Products
+facial tissue	Household	Paper Products
+tissues	Household	Paper Products
 tissue	Household	Paper Products
+napkins	Household	Paper Products
+napkin	Household	Paper Products
+
+# -----------------------------
+# HOUSEHOLD — KITCHEN & DINING
+# -----------------------------
+cling wrap	Household	Kitchen & Dining
+plastic wrap	Household	Kitchen & Dining
+aluminium foil	Household	Kitchen & Dining
+baking paper	Household	Kitchen & Dining
+food bags	Household	Kitchen & Dining
+freezer bags	Household	Kitchen & Dining
+zip bags	Household	Kitchen & Dining
+dish cloth	Household	Kitchen & Dining
+tea towel	Household	Kitchen & Dining
+cutlery	Household	Kitchen & Dining
+plate	Household	Kitchen & Dining
+bowl	Household	Kitchen & Dining
+mug	Household	Kitchen & Dining
+cup	Household	Kitchen & Dining
+frying pan	Household	Kitchen & Dining
+saucepan	Household	Kitchen & Dining
+container	Household	Kitchen & Dining
+lunch box	Household	Kitchen & Dining
+
+# -----------------------------
+# HOUSEHOLD — STORAGE & ORGANISATION
+# -----------------------------
+storage box	Household	Storage & Organisation
+storage basket	Household	Storage & Organisation
+storage container	Household	Storage & Organisation
+drawer organiser	Household	Storage & Organisation
+drawer organizer	Household	Storage & Organisation
+hanger	Household	Storage & Organisation
+clothes hanger	Household	Storage & Organisation
+
+# -----------------------------
+# HOUSEHOLD — HOME & LIVING
+# -----------------------------
+bath towel	Household	Home & Living
+hand towel	Household	Home & Living
+towel	Household	Home & Living
+bed sheet	Household	Home & Living
+duvet cover	Household	Home & Living
+pillow case	Household	Home & Living
+pillowcase	Household	Home & Living
+pillow	Household	Home & Living
+blanket	Household	Home & Living
+cushion	Household	Home & Living
+curtain	Household	Home & Living
+candle	Household	Home & Living
+light bulb	Household	Home & Living
+lamp	Household	Home & Living
+doormat	Household	Home & Living
+
+# -----------------------------
+# PERSONAL CARE — HAIR CARE
+# -----------------------------
 shampoo	Personal Care	Hair Care
 conditioner	Personal Care	Hair Care
+hair mask	Personal Care	Hair Care
+hair spray	Personal Care	Hair Care
+hair gel	Personal Care	Hair Care
+hair colour	Personal Care	Hair Care
+hair color	Personal Care	Hair Care
+
+# -----------------------------
+# PERSONAL CARE — BODY CARE
+# -----------------------------
+body wash	Personal Care	Body Care
+shower gel	Personal Care	Body Care
+hand wash	Personal Care	Body Care
+hand soap	Personal Care	Body Care
+bar soap	Personal Care	Body Care
 soap	Personal Care	Body Care
+deodorant	Personal Care	Body Care
+body lotion	Personal Care	Body Care
+hand cream	Personal Care	Body Care
+razor	Personal Care	Body Care
+shaving cream	Personal Care	Body Care
+
+# -----------------------------
+# PERSONAL CARE — ORAL CARE
+# -----------------------------
 toothpaste	Personal Care	Oral Care
+toothbrush	Personal Care	Oral Care
+mouthwash	Personal Care	Oral Care
+dental floss	Personal Care	Oral Care
+floss	Personal Care	Oral Care
+
+# -----------------------------
+# PERSONAL CARE — SKINCARE
+# -----------------------------
+sunscreen	Personal Care	Skincare
+sunblock	Personal Care	Skincare
+face wash	Personal Care	Skincare
+facial cleanser	Personal Care	Skincare
+cleanser	Personal Care	Skincare
+moisturiser	Personal Care	Skincare
+moisturizer	Personal Care	Skincare
+face cream	Personal Care	Skincare
+serum	Personal Care	Skincare
+lip balm	Personal Care	Skincare
+
+# -----------------------------
+# PERSONAL CARE — FEMININE CARE
+# -----------------------------
+sanitary pads	Personal Care	Feminine Care
+sanitary pad	Personal Care	Feminine Care
+tampons	Personal Care	Feminine Care
+tampon	Personal Care	Feminine Care
+panty liners	Personal Care	Feminine Care
+panty liner	Personal Care	Feminine Care
+
+# -----------------------------
+# HEALTH
+# -----------------------------
+paracetamol	Health	Pharmacy
+ibuprofen	Health	Pharmacy
+pain relief	Health	Pharmacy
+cough syrup	Health	Pharmacy
+cough medicine	Health	Pharmacy
+cold flu	Health	Pharmacy
+antihistamine	Health	Pharmacy
+hayfever	Health	Pharmacy
+lozenges	Health	Pharmacy
+
+vitamin c	Health	Vitamins & Supplements
+vitamin d	Health	Vitamins & Supplements
+multivitamin	Health	Vitamins & Supplements
+fish oil	Health	Vitamins & Supplements
+magnesium	Health	Vitamins & Supplements
+zinc	Health	Vitamins & Supplements
+probiotic	Health	Vitamins & Supplements
+supplement	Health	Vitamins & Supplements
+
+bandage	Health	First Aid
+bandages	Health	First Aid
+plaster	Health	First Aid
+first aid	Health	First Aid
+antiseptic	Health	First Aid
+
+# -----------------------------
+# BABY & KIDS
+# -----------------------------
+baby wipes	Baby & Kids	Baby Care
+nappies	Baby & Kids	Baby Care
+diapers	Baby & Kids	Baby Care
+baby formula	Baby & Kids	Baby Care
+infant formula	Baby & Kids	Baby Care
+baby food	Baby & Kids	Baby Care
+baby shampoo	Baby & Kids	Baby Care
+
+colouring book	Baby & Kids	Kids
+coloring book	Baby & Kids	Kids
+kids book	Baby & Kids	Kids
+school lunch	Baby & Kids	Kids
+
+# -----------------------------
+# PET CARE
+# -----------------------------
+cat food	Pet Care	Pet Food
+dog food	Pet Care	Pet Food
+cat treats	Pet Care	Pet Food
+dog treats	Pet Care	Pet Food
+pet food	Pet Care	Pet Food
+cat litter	Pet Care	Pet Supplies
+pet litter	Pet Care	Pet Supplies
+dog lead	Pet Care	Pet Supplies
+dog leash	Pet Care	Pet Supplies
+pet toy	Pet Care	Pet Supplies
+
+# -----------------------------
+# GENERAL MERCHANDISE
+# -----------------------------
+t shirt	General Merchandise	Clothing
+shirt	General Merchandise	Clothing
+socks	General Merchandise	Clothing
+underwear	General Merchandise	Clothing
+pants	General Merchandise	Clothing
+trousers	General Merchandise	Clothing
+jacket	General Merchandise	Clothing
+shoes	General Merchandise	Clothing
+slippers	General Merchandise	Clothing
+
+notebook	General Merchandise	Stationery
+exercise book	General Merchandise	Stationery
+pen	General Merchandise	Stationery
+pencil	General Merchandise	Stationery
+marker	General Merchandise	Stationery
+highlighter	General Merchandise	Stationery
+eraser	General Merchandise	Stationery
+glue stick	General Merchandise	Stationery
+scissors	General Merchandise	Stationery
+
+usb cable	General Merchandise	Electronics
+charging cable	General Merchandise	Electronics
+charger	General Merchandise	Electronics
+headphones	General Merchandise	Electronics
+earphones	General Merchandise	Electronics
+battery	General Merchandise	Electronics
+batteries	General Merchandise	Electronics
+power board	General Merchandise	Electronics
+
+lego	General Merchandise	Toys
+puzzle	General Merchandise	Toys
+toy	General Merchandise	Toys
+doll	General Merchandise	Toys
+
+picture frame	General Merchandise	Homewares
+photo frame	General Merchandise	Homewares
+vase	General Merchandise	Homewares
+clock	General Merchandise	Homewares
+
+# -----------------------------
+# CHARITY / NON-PRODUCT
+# -----------------------------
+salvation army donation	Charity	Donations
+donation	Charity	Donations
+# -----------------------------
+# ALCOHOL — BEER
+# Product/brand names only. Pack size, volume and ABV are NOT classifiers.
+# -----------------------------
+speight's	Alcohol	Beer
+speights	Alcohol	Beer
+steinlager	Alcohol	Beer
+tui	Alcohol	Beer
+db export	Alcohol	Beer
+export gold	Alcohol	Beer
+export ultra	Alcohol	Beer
+lion red	Alcohol	Beer
+lion brown	Alcohol	Beer
+double brown	Alcohol	Beer
+waikato draught	Alcohol	Beer
+mac's	Alcohol	Beer
+macs	Alcohol	Beer
+monteith's	Alcohol	Beer
+monteiths	Alcohol	Beer
+emerson's	Alcohol	Beer
+emersons	Alcohol	Beer
+garage project	Alcohol	Beer
+panhead	Alcohol	Beer
+parrotdog	Alcohol	Beer
+behemoth	Alcohol	Beer
+epic	Alcohol	Beer
+heineken	Alcohol	Beer
+corona	Alcohol	Beer
+asahi	Alcohol	Beer
+peroni	Alcohol	Beer
+stella artois	Alcohol	Beer
+carlsberg	Alcohol	Beer
+budweiser	Alcohol	Beer
+kingfisher	Alcohol	Beer
+guinness	Alcohol	Beer
+coopers	Alcohol	Beer
+victoria bitter	Alcohol	Beer
+pure blonde	Alcohol	Beer
+hollandia	Alcohol	Beer
+bavaria	Alcohol	Beer
+
+# Generic alcohol product words are intentionally limited to relatively
+# specific beverage names rather than broad words such as "gold" or "pure".
+pilsner	Alcohol	Beer
+lager beer	Alcohol	Beer
+pale ale	Alcohol	Beer
+india pale ale	Alcohol	Beer
+ipa beer	Alcohol	Beer
+stout beer	Alcohol	Beer
+
+# -----------------------------
+# ALCOHOL — WINE
+# -----------------------------
+oyster bay	Alcohol	Wine
+villa maria	Alcohol	Wine
+brancott estate	Alcohol	Wine
+mud house	Alcohol	Wine
+stoneleigh	Alcohol	Wine
+matua	Alcohol	Wine
+cloudy bay	Alcohol	Wine
+the ned	Alcohol	Wine
+church road	Alcohol	Wine
+esk valley	Alcohol	Wine
+te mata	Alcohol	Wine
+mission estate	Alcohol	Wine
+babich	Alcohol	Wine
+waipara hills	Alcohol	Wine
+saint clair	Alcohol	Wine
+kim crawford	Alcohol	Wine
+jacob's creek	Alcohol	Wine
+jacobs creek	Alcohol	Wine
+wolf blass	Alcohol	Wine
+penfolds	Alcohol	Wine
+yellow tail	Alcohol	Wine
+lindauer	Alcohol	Wine
+deutz	Alcohol	Wine
+moet	Alcohol	Wine
+veuve clicquot	Alcohol	Wine
+
+sauvignon blanc	Alcohol	Wine
+pinot gris	Alcohol	Wine
+pinot grigio	Alcohol	Wine
+pinot noir	Alcohol	Wine
+chardonnay	Alcohol	Wine
+cabernet sauvignon	Alcohol	Wine
+cabernet merlot	Alcohol	Wine
+merlot	Alcohol	Wine
+syrah	Alcohol	Wine
+shiraz	Alcohol	Wine
+riesling	Alcohol	Wine
+prosecco	Alcohol	Wine
+champagne	Alcohol	Wine
+rose wine	Alcohol	Wine
+rosé wine	Alcohol	Wine
+
+# -----------------------------
+# ALCOHOL — CIDER
+# -----------------------------
+scrumpy	Alcohol	Cider
+somersby	Alcohol	Cider
+rekorderlig	Alcohol	Cider
+brothers cider	Alcohol	Cider
+apple cider	Alcohol	Cider
+pear cider	Alcohol	Cider
+
+# -----------------------------
+# ALCOHOL — SPIRITS
+# -----------------------------
+smirnoff	Alcohol	Spirits
+absolut	Alcohol	Spirits
+grey goose	Alcohol	Spirits
+gordon's	Alcohol	Spirits
+gordons	Alcohol	Spirits
+bombay sapphire	Alcohol	Spirits
+tanqueray	Alcohol	Spirits
+beefeater gin	Alcohol	Spirits
+hendrick's	Alcohol	Spirits
+hendricks	Alcohol	Spirits
+bacardi	Alcohol	Spirits
+captain morgan	Alcohol	Spirits
+malibu	Alcohol	Spirits
+jim beam	Alcohol	Spirits
+jack daniel's	Alcohol	Spirits
+jack daniels	Alcohol	Spirits
+johnnie walker	Alcohol	Spirits
+jameson	Alcohol	Spirits
+chivas regal	Alcohol	Spirits
+glenfiddich	Alcohol	Spirits
+glenlivet	Alcohol	Spirits
+maker's mark	Alcohol	Spirits
+makers mark	Alcohol	Spirits
+southern comfort	Alcohol	Spirits
+baileys	Alcohol	Spirits
+kahlua	Alcohol	Spirits
+jagermeister	Alcohol	Spirits
+jägermeister	Alcohol	Spirits
+hennessy	Alcohol	Spirits
+courvoisier	Alcohol	Spirits
+tequila	Alcohol	Spirits
+vodka	Alcohol	Spirits
+bourbon	Alcohol	Spirits
+whisky	Alcohol	Spirits
+whiskey	Alcohol	Spirits
+gin	Alcohol	Spirits
+white rum	Alcohol	Spirits
+dark rum	Alcohol	Spirits
+
+# -----------------------------
+# ALCOHOL — RTD
+# -----------------------------
+long white	Alcohol	RTD
+woodstock	Alcohol	RTD
+codys	Alcohol	RTD
+cody's	Alcohol	RTD
+cruiser	Alcohol	RTD
+purple goanna	Alcohol	RTD
+smirnoff ice	Alcohol	RTD
+jim beam cola	Alcohol	RTD
+jack daniels cola	Alcohol	RTD
+vodka soda	Alcohol	RTD
+gin tonic	Alcohol	RTD
+gin & tonic	Alcohol	RTD

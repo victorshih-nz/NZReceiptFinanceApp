@@ -1,6 +1,7 @@
 package com.example.nzreceiptapp.domain.usecase;
 
 import com.example.nzreceiptapp.domain.logic.CategoryClassifier;
+import com.example.nzreceiptapp.domain.logic.ReceiptBranchDetector;
 import com.example.nzreceiptapp.domain.model.Receipt;
 import com.example.nzreceiptapp.domain.model.ParsedReceipt;
 import com.example.nzreceiptapp.domain.model.ReceiptItem;
@@ -15,73 +16,130 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * 將 OCR 文字解析為 Receipt 領域物件的 Use Case
+ * Converts OCR text into the Receipt domain object.
  */
 public class ParseReceiptUseCase {
+
 
     private final IParserFactory parserFactory;
     private final ICategoryInitializer categoryInitializer;
     private final CategoryClassifier categoryClassifier;
 
-    public ParseReceiptUseCase(IParserFactory parserFactory,
-                               ICategoryInitializer categoryInitializer,
-                               CategoryClassifier categoryClassifier) {
+    public ParseReceiptUseCase(
+            IParserFactory parserFactory,
+            ICategoryInitializer categoryInitializer,
+            CategoryClassifier categoryClassifier) {
+
         this.parserFactory = parserFactory;
         this.categoryInitializer = categoryInitializer;
         this.categoryClassifier = categoryClassifier;
     }
 
-    public Receipt execute(String rawText, String chainName, String branchName, LocalDateTime purchaseDate) {
-        return execute(rawText, chainName, branchName, purchaseDate, null);
+    public Receipt execute(
+            String rawText,
+            String chainName,
+            String branchName,
+            LocalDateTime purchaseDate) {
+
+        return execute(
+                rawText,
+                chainName,
+                branchName,
+                purchaseDate,
+                null);
     }
 
-    public Receipt execute(String rawText, String chainName, String branchName,
-                           LocalDateTime purchaseDate, String imageUri) {
+    public Receipt execute(
+            String rawText,
+            String chainName,
+            String branchName,
+            LocalDateTime purchaseDate,
+            String imageUri) {
+
         categoryInitializer.ensureInitialized();
 
         String resolvedChain = chainName;
-        if (resolvedChain == null || resolvedChain.trim().isEmpty()
-                || "Auto detect".equalsIgnoreCase(resolvedChain.trim())) {
-            resolvedChain = parserFactory.detectChain(rawText);
+
+        if (resolvedChain == null
+                || resolvedChain.trim().isEmpty()
+                || "Auto detect".equalsIgnoreCase(
+                        resolvedChain.trim())) {
+
+            resolvedChain =
+                    parserFactory.detectChain(rawText);
         }
+
         if (resolvedChain == null) {
             throw new IllegalArgumentException(
-                    "Could not detect the supermarket. Please choose one before scanning.");
+                    "Could not detect the supermarket. "
+                            + "Please choose one before scanning.");
         }
 
-        IReceiptParser parser = parserFactory.getParser(resolvedChain);
+        IReceiptParser parser =
+                parserFactory.getParser(resolvedChain);
+
         if (parser == null) {
-            throw new IllegalArgumentException("Unsupported supermarket chain: " + resolvedChain);
+            throw new IllegalArgumentException(
+                    "Unsupported supermarket chain: "
+                            + resolvedChain);
         }
 
-        ParsedReceipt parsed = parser.parse(rawText);
-        List<ReceiptItem> classifiedItems = classifyItems(parsed.getItems());
+        ParsedReceipt parsed =
+                parser.parse(rawText);
+
+        List<ReceiptItem> classifiedItems =
+                classifyItems(parsed.getItems());
+
         if (classifiedItems.isEmpty()) {
-            throw new IllegalArgumentException("No receipt items could be recognised");
+            throw new IllegalArgumentException(
+                    "No receipt items could be recognised");
         }
-        
-        String resolvedBranch = branchName == null ? "" : branchName.trim();
-        Store store = new Store(UUID.randomUUID().toString(), resolvedChain, resolvedBranch);
-        
+
+        String resolvedBranch =
+                branchName == null
+                        ? ""
+                        : branchName.trim();
+
+        if (resolvedBranch.isEmpty()) {
+            resolvedBranch =
+                    ReceiptBranchDetector.detect(
+                            rawText,
+                            resolvedChain);
+        }
+
+        Store store =
+                new Store(
+                        UUID.randomUUID().toString(),
+                        resolvedChain,
+                        resolvedBranch);
+
         return new Receipt(
                 UUID.randomUUID().toString(),
                 store,
                 classifiedItems,
-                purchaseDate != null ? purchaseDate : LocalDateTime.now(),
-                0, // 初始折扣設為 0，可由使用者後續調整
+                purchaseDate != null
+                        ? purchaseDate
+                        : LocalDateTime.now(),
+                0,
                 false,
                 rawText,
                 imageUri,
-                parsed.getPrintedTotalCents()
-        );
+                parsed.getPrintedTotalCents());
     }
 
-    private List<ReceiptItem> classifyItems(List<ReceiptItem> parsedItems) {
-        List<ReceiptItem> result = new ArrayList<>();
+    private List<ReceiptItem> classifyItems(
+            List<ReceiptItem> parsedItems) {
+
+        List<ReceiptItem> result =
+                new ArrayList<>();
+
         for (ReceiptItem item : parsedItems) {
-            result.add(item.withCategory(
-                    categoryClassifier.classify(item.getCleanedName())));
+            result.add(
+                    item.withCategory(
+                            categoryClassifier.classify(
+                                    item.getCleanedName())));
         }
+
         return result;
     }
 }

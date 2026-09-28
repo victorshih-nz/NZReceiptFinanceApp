@@ -14,67 +14,101 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * Category matching contract.
+ *
+ * The product/item name drives classification. Units/package sizes are merely
+ * removed as noise and never classify an item by themselves.
+ */
 public class CategoryClassifierTest {
 
     private CategoryClassifier classifier;
-    private MockCategoryRepository mockRepository;
+    private MockCategoryRepository repository;
 
     @Before
     public void setUp() {
-        mockRepository = new MockCategoryRepository();
-        classifier = new CategoryClassifier(mockRepository);
+        repository = new MockCategoryRepository();
+        classifier = new CategoryClassifier(repository);
 
-        // 初始化測試數據
-        Category grocery = new Category(UUID.randomUUID().toString(), "Grocery", null);
-        Category freshFood = new Category(UUID.randomUUID().toString(), "Fresh Food", grocery);
-        Category snacks = new Category(UUID.randomUUID().toString(), "Snacks & Beverages", grocery);
-
-        mockRepository.addRule("Milk", freshFood);
-        mockRepository.addRule("Eggs", freshFood);
-        mockRepository.addRule("Coca Cola", snacks);
-        mockRepository.addRule("Chocolate", snacks);
+        add("milk", "Food", "Dairy & Eggs");
+        add("milk powder", "Food", "Dairy & Eggs");
+        add("corn chips", "Food", "Snacks");
+        add("seaweed snack", "Food", "Snacks");
+        add("coffee", "Food", "Drinks");
+        add("sushi rice", "Food", "Pantry");
+        add("white toast", "Food", "Bakery");
+        add("beef schnitzel", "Food", "Meat");
+        add("ranch dressing", "Food", "Condiments & Sauces");
+        add("dressing ranch", "Food", "Condiments & Sauces");
+        add("paper towel", "Household", "Paper Products");
+        add("shampoo", "Personal Care", "Hair Care");
+        add("salvation army donation", "Charity", "Donations");
     }
 
     @Test
-    public void testClassify_StandardMatch() {
-        Category result = classifier.classify("WW Milk Standard 3L");
-        assertNotNull(result);
-        assertEquals("Fresh Food", result.getName());
-        assertEquals("Grocery", result.getParentCategory().getName());
+    public void classifiesRealReceiptStyleNames() {
+        assertCategory("PAMS MILK POWDER WHOLE 400G", "Dairy & Eggs");
+        assertCategory("MAMASAN SUSHI RICE 1KG", "Pantry");
+        assertCategory("MEXICANO CORN CHIPS THAI SWT CHILLI 170G", "Snacks");
+        assertCategory("OFOOD SEAWEED SNACK GREEN 40G", "Snacks");
+        assertCategory("MOCCONA COFFEE MIXES LATTE 148G 10PK", "Drinks");
+        assertCategory("PAMS VALUE WHITE TOAST BREAD 600G", "Bakery");
+        assertCategory("NZ BEEF SCHNITZEL", "Meat");
+        assertCategory("WW DRESSING RANCH 300ML", "Condiments & Sauces");
+        assertCategory("#SALVATION ARMY DONATION", "Donations");
     }
 
     @Test
-    public void testClassify_LongestMatch() {
-        // 增加一個更長且包含 Milk 的規則
-        Category specialMilk = new Category(UUID.randomUUID().toString(), "Special Milk", null);
-        mockRepository.addRule("Standard Milk", specialMilk);
+    public void longestProductNameRuleWins() {
+        add("rice", "Food", "Pantry");
+        add("sushi rice", "Food", "Pantry");
 
-        Category result = classifier.classify("WW Standard Milk 3L");
-        assertNotNull(result);
-        assertEquals("Special Milk", result.getName());
+        assertCategory("MAMASAN SUSHI RICE 1KG", "Pantry");
     }
 
     @Test
-    public void testClassify_CleaningLogic() {
-        // 測試移除單位後是否還能匹配
-        Category result = classifier.classify("^ Coca Cola 2.25L #");
-        assertNotNull(result);
-        assertEquals("Snacks & Beverages", result.getName());
+    public void packageUnitsDoNotClassifyAnything() {
+        assertNull(classifier.classify("500G"));
+        assertNull(classifier.classify("2L"));
+        assertNull(classifier.classify("10PK"));
+        assertNull(classifier.classify("20EA"));
     }
 
     @Test
-    public void testClassify_DoesNotMatchInsideAnotherWord() {
-        Category eggCategory = new Category("egg", "Eggs", null);
-        mockRepository.addRule("egg", eggCategory);
+    public void unitChangesDoNotChangeProductCategory() {
+        assertCategory("WW MILK STANDARD 3L", "Dairy & Eggs");
+        assertCategory("WW MILK STANDARD 1L", "Dairy & Eggs");
+        assertCategory("WW MILK STANDARD 500ML", "Dairy & Eggs");
+    }
 
+    @Test
+    public void doesNotMatchKeywordInsideAnotherWord() {
+        add("egg", "Food", "Dairy & Eggs");
         assertNull(classifier.classify("Veggie burger"));
     }
 
-    // 簡易 Mock 實作
-    private static class MockCategoryRepository implements ICategoryRepository {
+    private void assertCategory(String itemName, String expectedSubCategory) {
+        Category result = classifier.classify(itemName);
+        assertNotNull("Expected category for: " + itemName, result);
+        assertEquals(expectedSubCategory, result.getName());
+    }
+
+    private void add(String keyword, String parentName, String subCategoryName) {
+        Category parent =
+                new Category(UUID.randomUUID().toString(), parentName, null);
+
+        Category child =
+                new Category(UUID.randomUUID().toString(), subCategoryName, parent);
+
+        repository.addRule(keyword, child);
+    }
+
+    private static final class MockCategoryRepository
+            implements ICategoryRepository {
+
         private final Map<String, Category> rules = new HashMap<>();
 
-        public void addRule(String keyword, Category category) {
+        void addRule(String keyword, Category category) {
             rules.put(keyword, category);
         }
 
@@ -84,10 +118,14 @@ public class CategoryClassifierTest {
         }
 
         @Override
-        public Category findCategoryByName(String name, String parentName) { return null; }
+        public Category findCategoryByName(String name, String parentName) {
+            return null;
+        }
+
         @Override
-        public void saveCategory(Category category) {}
+        public void saveCategory(Category category) { }
+
         @Override
-        public void saveRule(String keyword, String categoryId) {}
+        public void saveRule(String keyword, String categoryId) { }
     }
 }

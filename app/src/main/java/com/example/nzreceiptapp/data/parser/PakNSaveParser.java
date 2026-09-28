@@ -1,5 +1,6 @@
 package com.example.nzreceiptapp.data.parser;
 
+import com.example.nzreceiptapp.domain.model.ItemDiscount;
 import com.example.nzreceiptapp.domain.model.ParsedReceipt;
 import com.example.nzreceiptapp.domain.model.ReceiptItem;
 import com.example.nzreceiptapp.domain.parser.IReceiptParser;
@@ -10,101 +11,91 @@ import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/**
- * 專門解析紐西蘭 PAK'nSAVE 收據文字的解析器 (Data Layer)
- */
+/** PAK'nSAVE: product, optional @ quantity/price, optional PF_ item discount. */
 public class PakNSaveParser implements IReceiptParser {
+    private static final Pattern TOTAL = Pattern.compile("(?im)^\\s*TOTAL(?:\\s+DUE)?\\s+\\$?\\s*(\\d+\\.\\d{2})\\s*$");
+    private static final Pattern ITEM = Pattern.compile("^(.+?)\\s+\\$?\\s*(\\d+\\.\\d{2})\\s*(?:[GN*])?$");
+    private static final Pattern PF = Pattern.compile("(?i)^PF_\\s*(.*?)\\s+[-−]\\s*\\$?\\s*(\\d+\\.\\d{2})\\s*$");
+    private static final Pattern STOP = Pattern.compile("(?i)^(?:\\d+\\s+)?(?:SUB\\s*TOTAL|TOTAL(?:\\s+DUE)?|BALANCE\\s+DUE|EFTPOS|CASH|CHANGE|ROUNDING|GST|VISA|MASTERCARD|TAX INVOICE|THANK YOU|PAYMENT)\\b.*");
+    private static final Pattern HEADER = Pattern.compile("(?i)^(?:PAK.?N.?SAVE|STORE\\s+MGR|STORE\\s+\\d+|PH:|PHONE:|WELCOME|\\d{1,2}[./-]\\d{1,2}[./-]\\d{2,4}\\b).*", Pattern.CASE_INSENSITIVE);
 
-    private static final Pattern PRINTED_TOTAL_PATTERN = Pattern.compile(
-            "(?im)^\\s*TOTAL(?:\\s+DUE)?\\s+\\$?\\s*(\\d+\\.\\d{2})\\s*$");
-
-    private List<ReceiptItem> parseItems(String ocrText) {
+    @Override public ParsedReceipt parse(String rawText) {
         List<ReceiptItem> items = new ArrayList<>();
-        if (ocrText == null || ocrText.trim().isEmpty()) {
-            return items;
-        }
-
-        String[] lines = ocrText.split("\n");
-
-        Pattern itemPattern = Pattern.compile("^(.+?)\\s+\\$?\\s*(\\d+\\.\\d{2})$");
-        Pattern excludePattern = Pattern.compile("(EFTPOS|CASH|CHANGE|ROUNDING|GST|TOTAL|SUBTOTAL)", Pattern.CASE_INSENSITIVE);
-        Pattern weightInfoPattern = Pattern.compile("^([\\d.]+)\\s*([a-zA-Z]+)\\s*@\\s*\\$?\\s*([\\d.]+)");
-        
-        String pendingItemName = null;
-
-        for (String line : lines) {
-            line = line.trim();
+        String pending = null;
+        if (rawText != null) for (String raw : rawText.split("\\r?\\n")) {
+            String line = raw.trim();
             if (line.isEmpty()) continue;
+            if (STOP.matcher(line).matches()) { pending = null; continue; }
+            if (HEADER.matcher(line).matches()) { pending = null; continue; }
 
-            // 3. 解析商品明細
-            Matcher itemMatcher = itemPattern.matcher(line);
-            if (itemMatcher.matches()) {
-                String matchedPart = itemMatcher.group(1).trim();
-                double matchedPrice = Double.parseDouble(itemMatcher.group(2));
-
-                if (excludePattern.matcher(matchedPart).find()) {
-                    continue;
-                }
-
-                String itemId = UUID.randomUUID().toString();
-
-                // 狀況 A：如果是「秤重/多件商品」的第二行說明 (包含 @)
-                if (matchedPart.contains("@")) {
-                    Matcher weightMatcher = weightInfoPattern.matcher(matchedPart);
-
-                    double quantity = 1.0;
-                    String unit = "kg";
-                    long unitPriceCents = Math.round(matchedPrice * 100);
-
-                    if (weightMatcher.find()) {
-                        quantity = Double.parseDouble(weightMatcher.group(1));
-                        unit = weightMatcher.group(2);
-                        double unitPrice = Double.parseDouble(weightMatcher.group(3));
-                        unitPriceCents = Math.round(unitPrice * 100);
+            // A discount is never a product. Associate only with the immediately preceding item.
+            Matcher pf = PF.matcher(line);
+            if (line.regionMatches(true, 0, "PF_", 0, 3)) {
+                if (pf.matches() && !items.isEmpty() && pending == null) {
+                    ReceiptItem previous = items.get(items.size() - 1);
+                    String descriptor = pf.group(1).trim();
+                    if (corresponds(descriptor, previous.getCleanedName())) {
+                        long discount = Math.round(Double.parseDouble(pf.group(2)) * 100);
+                        List<ItemDiscount> discounts = new ArrayList<>(previous.getDiscounts());
+                        discounts.add(new ItemDiscount(ItemDiscount.DiscountType.UNKNOWN, line, discount));
+                        items.set(items.size() - 1, new ReceiptItem(previous.getId(), previous.getRawName(),
+                                previous.getCleanedName(), previous.getQuantity(), previous.getUnit(),
+                                previous.getUnitPriceCents(), discounts, previous.getCategory(), previous.getSpecialMk()));
                     }
-
-                    String finalName = (pendingItemName != null) ? pendingItemName : matchedPart;
-
-                    items.add(new ReceiptItem(
-                            itemId, matchedPart, finalName, quantity, unit, unitPriceCents,
-                            Collections.emptyList(),
-                            null,
-                            false
-                    ));
-
-                    pendingItemName = null;
-                    continue;
                 }
+                // Unmatched PF must not be silently turned into a normal positive-priced item.
+                continue;
+            }
 
-                // 狀況 B：【正常品項】
-                long unitPriceCents = Math.round(matchedPrice * 100);
-
-                items.add(new ReceiptItem(
-                        itemId, matchedPart, matchedPart, 1.0, "ea", unitPriceCents,
-                        Collections.emptyList(),
-                        null,
-                        false
-                ));
-
-                pendingItemName = null;
-
-            } else {
-                if (!excludePattern.matcher(line).find() && line.length() > 3) {
-                    pendingItemName = line;
+            // @ has priority over generic amount matching; it may be the second line of an item.
+            if (line.contains("@")) {
+                QuantityLine quantityLine = QuantityLine.parse(line);
+                if (quantityLine != null && pending != null) {
+                    items.add(new ReceiptItem(UUID.randomUUID().toString(), pending, pending,
+                            quantityLine.quantity, quantityLine.unit, quantityLine.unitPriceCents,
+                            Collections.emptyList(), null, false));
+                    pending = null;
+                } else if (quantityLine != null && !items.isEmpty() && pending == null) {
+                    ReceiptItem prev = items.get(items.size() - 1);
+                    if (prev.getQuantity() == 1.0 && "ea".equals(prev.getUnit()) &&
+                            (quantityLine.printedSubtotalCents == null ||
+                                    Math.abs(quantityLine.printedSubtotalCents - prev.getOriginalSubtotalCents()) <= 1)) {
+                        items.set(items.size() - 1, new ReceiptItem(prev.getId(), prev.getRawName(),
+                                prev.getCleanedName(), quantityLine.quantity, quantityLine.unit,
+                                quantityLine.unitPriceCents, prev.getDiscounts(), prev.getCategory(), prev.getSpecialMk()));
+                    }
                 }
+                continue;
+            }
+
+            Matcher m = ITEM.matcher(line);
+            if (m.matches()) {
+                String name = m.group(1).trim();
+                if (name.isEmpty()) continue;
+                long cents = Math.round(Double.parseDouble(m.group(2)) * 100);
+                if (pending != null && (name.matches("(?i).*\\b(?:kg|g|each)\\b.*") || name.length() < 3)) {
+                    name = pending + " " + name;
+                }
+                items.add(new ReceiptItem(UUID.randomUUID().toString(), name, name, 1.0, "ea", cents,
+                        Collections.emptyList(), null, false));
+                pending = null;
+            } else if (!line.matches("(?i).*\\b(?:INVOICE|RECEIPT|TRANSACTION|CARD|TERMINAL|GST|THANK|YOUR)\\b.*")) {
+                pending = line;
             }
         }
-
-        return items;
+        Matcher total = TOTAL.matcher(rawText == null ? "" : rawText);
+        Long printed = total.find() ? Math.round(Double.parseDouble(total.group(1)) * 100) : null;
+        return new ParsedReceipt(items, printed);
     }
 
-    @Override
-    public ParsedReceipt parse(String rawText) {
-        List<ReceiptItem> items = parseItems(rawText);
-        Matcher matcher = PRINTED_TOTAL_PATTERN.matcher(rawText == null ? "" : rawText);
-        Long total = matcher.find()
-                ? Math.round(Double.parseDouble(matcher.group(1)) * 100)
-                : null;
-        return new ParsedReceipt(items, total);
+    private static boolean corresponds(String pfName, String product) {
+        String a = normalise(pfName);
+        String b = normalise(product);
+        if (a.isEmpty() || b.isEmpty()) return false;
+        // PF_ labels are often truncated versions of the preceding product name.
+        return b.startsWith(a) || a.startsWith(b) || (a.length() >= 8 && b.contains(a));
+    }
+    private static String normalise(String text) {
+        return text.toUpperCase(java.util.Locale.ROOT).replaceAll("[^A-Z0-9]", "");
     }
 }
